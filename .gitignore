@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+data/nova.db
+data/chroma/
+.env
