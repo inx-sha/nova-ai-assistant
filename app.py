@@ -14,6 +14,10 @@ from core.router import route_query
 from knowledge.ingest import ingest_text
 from knowledge.store import count as knowledge_count
 from knowledge.store import set_tier, find_chunks_by_source
+import shutil
+import tempfile
+from fastapi import UploadFile, File, Form
+from knowledge.pdf_reader import extract_text_from_pdf
 
 app = FastAPI(title="NOVA", version="0.1.0")
 
@@ -67,6 +71,38 @@ def ingest_endpoint(req: IngestRequest) -> IngestResponse:
     result = ingest_text(
         req.text, req.source, tags=req.tags,
         confidence=req.confidence, categories=req.categories,
+    )
+    return IngestResponse(**result)
+
+@app.post("/knowledge/ingest_pdf", response_model=IngestResponse)
+async def ingest_pdf_endpoint(
+    file: UploadFile = File(...),
+    tags: str = Form(""),
+    confidence: float = Form(1.0),
+    categories: str = Form("general"),
+) -> IngestResponse:
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+
+    try:
+        text = extract_text_from_pdf(tmp_path)
+    finally:
+        import os
+        os.remove(tmp_path)
+
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="No extractable text found in this PDF")
+
+    tags_list = [t.strip() for t in tags.split(",") if t.strip()]
+    categories_list = [c.strip() for c in categories.split(",") if c.strip()]
+
+    result = ingest_text(
+        text, source=file.filename, tags=tags_list,
+        confidence=confidence, categories=categories_list,
     )
     return IngestResponse(**result)
 
