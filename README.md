@@ -17,19 +17,23 @@ Still in progress. This README covers what's actually built so far.
 
 ## Structure
 
+## Structure
+
+```
 nova/
-├── app.py # FastAPI: /chat, /knowledge/ingest, /knowledge/pin, /knowledge/stats
-├── config.py # settings, overridable via env vars
+├── app.py              # FastAPI: /chat, /knowledge/ingest, /knowledge/pin, /knowledge/stats
+├── config.py            # settings, overridable via env vars
 ├── core/
-│ ├── llm.py # talks to Ollama
-│ ├── memory.py # SQLite memory
-│ └── router.py # decides how to answer
+│   ├── llm.py              # talks to Ollama
+│   ├── memory.py            # SQLite memory
+│   └── router.py             # decides how to answer
 ├── knowledge/
-│ ├── store.py # ChromaDB wrapper
-│ ├── ingest.py # chunking + dedup
-│ ├── internet.py # web search + verification
-│ └── eval.py # threshold testing
-└── data/ # db + vector store (gitignored)
+│   ├── store.py               # ChromaDB wrapper
+│   ├── ingest.py                # chunking + dedup
+│   ├── internet.py                # web search + verification
+│   └── eval.py                     # threshold testing
+└── data/                 # db + vector store (gitignored)
+```
 
 ## Setup
 
