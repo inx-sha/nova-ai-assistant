@@ -18,6 +18,8 @@ import shutil
 import tempfile
 from fastapi import UploadFile, File, Form
 from knowledge.pdf_reader import extract_text_from_pdf
+from knowledge.packs import install_pack, list_available_packs
+from core.memory import get_all_packs
 
 app = FastAPI(title="NOVA", version="0.1.0")
 
@@ -57,6 +59,16 @@ class PinRequest(BaseModel):
 
 class PinResponse(BaseModel):
     chunks_updated: int
+
+class InstallPackRequest(BaseModel):
+    name: str
+
+
+class InstallPackResponse(BaseModel):
+    pack: str
+    topics_researched: int
+    topics_total: int
+    failed_topics: list[str]
 
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(req: ChatRequest) -> ChatResponse:
@@ -131,3 +143,21 @@ def knowledge_stats() -> dict:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+@app.get("/packs/available")
+def available_packs() -> dict:
+    return {"available_packs": list_available_packs()}
+
+
+@app.get("/packs/installed")
+def installed_packs() -> dict:
+    return {"packs": get_all_packs()}
+
+
+@app.post("/packs/install", response_model=InstallPackResponse)
+def install_pack_endpoint(req: InstallPackRequest) -> InstallPackResponse:
+    try:
+        result = install_pack(req.name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return InstallPackResponse(**result)

@@ -40,6 +40,16 @@ CREATE TABLE IF NOT EXISTS devices (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS packs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    installed INTEGER NOT NULL DEFAULT 0,
+    topics_researched INTEGER NOT NULL DEFAULT 0,
+    topics_total INTEGER NOT NULL DEFAULT 0,
+    installed_at TEXT,
+    updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id);
 """
 
@@ -148,4 +158,41 @@ def upsert_device(name: str, type_: str, ip_or_topic: str, location: str = "") -
 def get_devices() -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM devices").fetchall()
+    return [dict(r) for r in rows]
+
+# --- Pack tracking ---
+
+def upsert_pack(name: str, installed: bool, topics_researched: int = 0,
+                 topics_total: int = 0) -> None:
+    now = _now()
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id, installed_at FROM packs WHERE name = ?", (name,)
+        ).fetchone()
+        if existing:
+            installed_at = existing["installed_at"] if existing["installed_at"] else (now if installed else None)
+            conn.execute(
+                "UPDATE packs SET installed = ?, topics_researched = ?, "
+                "topics_total = ?, installed_at = ?, updated_at = ? WHERE name = ?",
+                (int(installed), topics_researched, topics_total, installed_at, now, name),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO packs "
+                "(name, installed, topics_researched, topics_total, installed_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (name, int(installed), topics_researched, topics_total,
+                 now if installed else None, now),
+            )
+
+
+def get_pack(name: str) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM packs WHERE name = ?", (name,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_all_packs() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM packs").fetchall()
     return [dict(r) for r in rows]

@@ -14,6 +14,11 @@ Still in progress. This README covers what's actually built so far.
 - Won't store near-duplicate facts twice (checks similarity before inserting)
 - One chunk can belong to multiple categories at once (e.g. something about a medical device's firmware can be tagged health + technology + embedded-systems without storing it twice)
 - Tiered storage: `cache` (normal, can be cleaned up later), `pinned` (user said keep this), `pack` (bundled domain knowledge, protected). Pruning function exists and is tested but has to be run manually right now.
+- Domain knowledge packs: bundles of seed topics (e.g. `embedded_systems`)
+  that get proactively researched via the same internet-verification
+  pipeline and stored with `tier="pack"` (protected from pruning) — so
+  offline mode has a reliable base of knowledge in a chosen domain instead
+  of only what's been asked about live
 
 ## Structure
 
@@ -60,8 +65,14 @@ Then open `http://localhost:8000/docs`.
 
 - RAG thresholds (0.75 / 0.50) are based on a small manual test, not a big benchmark
 - No scheduler for automatic pruning yet
-- No "packs" system yet (pre-loading domain-specific knowledge like embedded systems basics when online, so it's still useful offline)
 - No voice, vision, or IoT automation yet
+- The local model (Qwen2.5-3B) sometimes supplements retrieved context with
+  its own pretrained knowledge instead of strictly using only what's stored
+  locally -- confirmed by testing (asked about FreeRTOS queues/semaphores,
+  the model added a full code example that wasn't in the stored summary at
+  all, just from its own training). Prompt-level instructions to prevent
+  this were only partially effective. This is a known limitation of small
+  local LLMs in RAG systems generally, not something fully solved here.
 
 ## Bigger picture
 
