@@ -20,6 +20,7 @@ from fastapi import UploadFile, File, Form
 from knowledge.pdf_reader import extract_text_from_pdf
 from knowledge.packs import install_pack, list_available_packs
 from core.memory import get_all_packs
+from knowledge.scheduler import start_scheduler, stop_scheduler, refresh_stale_pack_topics
 
 app = FastAPI(title="NOVA", version="0.1.0")
 
@@ -27,6 +28,15 @@ app = FastAPI(title="NOVA", version="0.1.0")
 @app.on_event("startup")
 def on_startup() -> None:
     memory.init_db()
+    start_scheduler()
+
+@app.on_event("shutdown")
+def on_shutdown() -> None:
+    stop_scheduler()
+
+@app.post("/packs/refresh")
+def refresh_packs_endpoint() -> dict:
+    return refresh_stale_pack_topics()
 
 
 class ChatRequest(BaseModel):

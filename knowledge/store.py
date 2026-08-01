@@ -11,6 +11,10 @@ import chromadb
 from config import CHROMA_PATH, CHROMA_COLLECTION
 from core.llm import embed
 
+import threading
+
+_write_lock = threading.Lock()
+
 _client = None
 _collection = None
 
@@ -29,41 +33,34 @@ def get_collection():
 def add_chunk(text: str, source: str, tags: list[str] | None = None,
               confidence: float = 1.0, categories: list[str] | None = None,
               tier: str = "cache") -> str:
-    """
-    Embeds and stores a single chunk. Returns the generated chunk id.
-
-    tier: "pack" (installed via a domain pack, never auto-pruned),
-          "pinned" (user explicitly saved it, never auto-pruned),
-          "cache" (default -- ordinary fetched knowledge, prunable later).
-    """
+    """..."""
     chunk_id = str(uuid.uuid4())
     vector = embed(text)
-    get_collection().add(
-        ids=[chunk_id],
-        embeddings=[vector],
-        documents=[text],
-        metadatas=[{
-            "source": source,
-            "tags": ",".join(tags or []),
-            "confidence": confidence,
-            "categories": ",".join(categories or ["general"]),
-            "tier": tier,
-            "date_collected": datetime.now(timezone.utc).isoformat(),
-        }],
-    )
+    with _write_lock:
+        get_collection().add(
+            ids=[chunk_id],
+            embeddings=[vector],
+            documents=[text],
+            metadatas=[{
+                "source": source,
+                "tags": ",".join(tags or []),
+                "confidence": confidence,
+                "categories": ",".join(categories or ["general"]),
+                "tier": tier,
+                "date_collected": datetime.now(timezone.utc).isoformat(),
+            }],
+        )
     return chunk_id
 
 
 def query(text: str, top_k: int = 5) -> list[dict]:
-    """
-    Returns [{"text", "metadata", "similarity"}, ...] sorted best-first.
-    Chroma returns cosine *distance*; we convert to similarity (1 - distance).
-    """
+    """..."""
     vector = embed(text)
-    results = get_collection().query(
-        query_embeddings=[vector],
-        n_results=top_k,
-    )
+    with _write_lock:
+        results = get_collection().query(
+            query_embeddings=[vector],
+            n_results=top_k,
+        )
 
     out = []
     docs = results.get("documents", [[]])[0]
@@ -80,24 +77,27 @@ def query(text: str, top_k: int = 5) -> list[dict]:
 
 
 def count() -> int:
-    return get_collection().count()
+    with _write_lock:
+        return get_collection().count()
 
 def set_tier(chunk_id: str, tier: str) -> bool:
-    """Updates the tier of an existing chunk (e.g. cache -> pinned)."""
-    collection = get_collection()
-    existing = collection.get(ids=[chunk_id])
-    if not existing or not existing.get("ids"):
-        return False
-    metadata = existing["metadatas"][0]
-    metadata["tier"] = tier
-    collection.update(ids=[chunk_id], metadatas=[metadata])
-    return True
+    """..."""
+    with _write_lock:
+        collection = get_collection()
+        existing = collection.get(ids=[chunk_id])
+        if not existing or not existing.get("ids"):
+            return False
+        metadata = existing["metadatas"][0]
+        metadata["tier"] = tier
+        collection.update(ids=[chunk_id], metadatas=[metadata])
+        return True
 
 
 def find_chunks_by_source(source: str) -> list[dict]:
-    """Returns all stored chunks whose metadata 'source' matches exactly."""
-    collection = get_collection()
-    results = collection.get(where={"source": source})
+    """..."""
+    with _write_lock:
+        collection = get_collection()
+        results = collection.get(where={"source": source})
     out = []
     for chunk_id, doc, meta in zip(results["ids"], results["documents"], results["metadatas"]):
         out.append({"id": chunk_id, "text": doc, "metadata": meta})
