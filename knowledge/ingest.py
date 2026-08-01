@@ -1,9 +1,3 @@
-"""
-Chunking + ingestion.
-
-Chunking strategy: paragraph-aware splitting, not fixed-character
-slicing -- this avoids cutting a chunk mid-explanation or mid-code-block.
-"""
 from __future__ import annotations
 
 import re

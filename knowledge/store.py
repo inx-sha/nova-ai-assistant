@@ -1,6 +1,3 @@
-"""
-ChromaDB wrapper — single persistent collection for Phase 1.
-"""
 from __future__ import annotations
 
 import uuid
@@ -107,13 +104,7 @@ from datetime import timedelta
 
 
 def prune_cache(max_age_days: int = 30, dry_run: bool = True) -> dict:
-    """
-    Deletes cache-tier chunks older than max_age_days. NEVER touches
-    'pinned' or 'pack' tier chunks, regardless of age.
 
-    dry_run=True (default): reports what WOULD be deleted, deletes nothing.
-    Set dry_run=False to actually delete.
-    """
     collection = get_collection()
     all_chunks = collection.get()
 
@@ -141,10 +132,7 @@ def prune_cache(max_age_days: int = 30, dry_run: bool = True) -> dict:
     }
 
 def backfill_missing_tiers(default_tier: str = "cache") -> int:
-    """
-    One-time fix: sets tier="cache" on any chunk stored before the tier
-    field existed (where metadata.tier is missing/None). Returns count fixed.
-    """
+
     collection = get_collection()
     all_chunks = collection.get()
 

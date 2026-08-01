@@ -1,10 +1,3 @@
-"""
-Domain knowledge packs -- bundles of seed topics that get proactively
-researched (via the same research_topic() -> ingest_text() pipeline
-used for live chat) so offline mode has a reliable base of knowledge
-in a chosen domain, without waiting for the user to happen to ask
-about each topic first.
-"""
 from __future__ import annotations
 
 from core import memory
@@ -34,11 +27,7 @@ def list_available_packs() -> list[str]:
 
 
 def install_pack(name: str) -> dict:
-    """
-    Researches every seed topic in the named pack (online, via
-    research_topic) and stores results tagged tier='pack' so they're
-    protected from pruning. Returns progress info.
-    """
+
     if name not in AVAILABLE_PACKS:
         raise ValueError(f"Unknown pack '{name}'. Available: {list_available_packs()}")
 

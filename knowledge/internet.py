@@ -1,12 +1,3 @@
-"""
-Internet search + fetch + verify pipeline.
-
-Design principle (from the project's Knowledge Verification rules):
-never trust a single source. We search multiple results, fetch several
-pages, and ask the LLM to cross-check consistency across them before
-treating anything as "learned" -- this is what separates it from just
-letting the LLM answer from unverified pretrained knowledge.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -73,12 +64,7 @@ def fetch_page_text(url: str) -> str | None:
 
 
 def research_topic(query: str) -> ResearchOutcome | None:
-    """
-    Searches the web and asks the LLM to produce a verified summary from
-    multiple search result snippets -- cross-checking consistency across
-    sources rather than trusting any single one. Returns None if nothing
-    usable was found.
-    """
+
     results = search_web(query)
     if not results:
         return None
