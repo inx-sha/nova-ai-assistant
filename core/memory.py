@@ -50,6 +50,16 @@ CREATE TABLE IF NOT EXISTS packs (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS corrections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic TEXT NOT NULL,
+    wrong_info TEXT NOT NULL,
+    correct_info TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'unverified',
+    verification_note TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id);
 """
 
@@ -195,4 +205,28 @@ def get_pack(name: str) -> dict | None:
 def get_all_packs() -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM packs").fetchall()
+    return [dict(r) for r in rows]
+
+# --- Corrections ---
+
+def add_correction(topic: str, wrong_info: str, correct_info: str,
+                    status: str = "unverified", verification_note: str = "") -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO corrections (topic, wrong_info, correct_info, status, "
+            "verification_note, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (topic, wrong_info, correct_info, status, verification_note, _now()),
+        )
+
+
+def get_all_corrections() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM corrections ORDER BY id DESC").fetchall()
+    return [dict(r) for r in rows]
+
+def get_verified_corrections() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM corrections WHERE status = 'verified' ORDER BY id DESC"
+        ).fetchall()
     return [dict(r) for r in rows]

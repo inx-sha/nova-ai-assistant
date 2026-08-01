@@ -110,3 +110,28 @@ def research_topic(query: str) -> ResearchOutcome | None:
         confidence=confidence,
         sources=[r.url for r in usable],
     )
+
+def verify_claim(topic: str, claimed_correct_info: str) -> tuple[str, str]:
+
+    outcome = research_topic(topic)
+    if outcome is None:
+        return "unverified", "Could not research this online to verify (no internet or no results)."
+
+    verification_prompt = (
+        f"A user claims the following about '{topic}':\n\n"
+        f"USER'S CLAIM: {claimed_correct_info}\n\n"
+        f"INDEPENDENT RESEARCH SUMMARY: {outcome.summary}\n\n"
+        "Does the independent research SUPPORT, CONTRADICT, or NOT ADDRESS "
+        "the user's claim? Respond with exactly one word first "
+        "(SUPPORT, CONTRADICT, or UNCLEAR), then a colon, then a one-"
+        "sentence explanation. Example: 'SUPPORT: both describe the same mechanism.'"
+    )
+    response = chat([{"role": "user", "content": verification_prompt}])
+
+    verdict = response.strip().split(":")[0].strip().upper()
+    if verdict == "SUPPORT":
+        return "verified", response
+    elif verdict == "CONTRADICT":
+        return "disputed", response
+    else:
+        return "unverified", response

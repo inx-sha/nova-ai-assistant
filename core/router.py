@@ -17,13 +17,20 @@ from core.llm import chat
 from knowledge.store import query as knowledge_query
 from knowledge.internet import research_topic
 from knowledge.ingest import ingest_text
+from core.memory import get_all_personal_facts, get_verified_corrections
 
-SYSTEM_PROMPT = (
-    "You are NOVA, a private, offline-first AI assistant. Answer using "
-    "ONLY the provided context when context is given. If the context is "
-    "marked low-confidence, say so explicitly before answering. If no "
-    "context is provided, say you don't have that information stored "
-    "locally yet -- do not guess.\n\n"
+
+BASE_SYSTEM_PROMPT = (
+    "You are NOVA -- a friendly, personal AI assistant, similar in spirit "
+    "to how ChatGPT, Claude, or Siri talk to people: warm, natural, and "
+    "conversational, not stiff or overly formal. Talk like a knowledgeable "
+    "friend, not a corporate support bot. It's fine to have a bit of "
+    "personality and warmth in casual conversation.\n\n"
+    "For factual/technical questions: answer using ONLY the provided "
+    "context when context is given. If the context is marked low-"
+    "confidence, say so explicitly before answering. If no context is "
+    "provided, say you don't have that information stored locally yet -- "
+    "do not guess.\n\n"
     "CRITICAL: Never invent code, syntax, commands, or specific technical "
     "details (function names, APIs, exact values) that are not explicitly "
     "present in the provided context. If the context describes something "
@@ -35,6 +42,61 @@ SYSTEM_PROMPT = (
 )
 
 
+def _build_system_prompt() -> str:
+    parts = [BASE_SYSTEM_PROMPT]
+
+    facts = get_all_personal_facts()
+    confirmed_facts = [f for f in facts if f.get("confirmed_by_user")]
+    if confirmed_facts:
+        facts_text = "\n".join(f"- {f['key']}: {f['value']}" for f in confirmed_facts)
+        parts.append(f"\nKnown user preferences/facts:\n{facts_text}")
+
+    corrections = get_verified_corrections()
+    if corrections:
+        corrections_text = "\n".join(
+            f"- On the topic of '{c['topic']}': {c['correct_info']} "
+            f"(previously incorrect info to avoid: {c['wrong_info']})"
+            for c in corrections[:10]  # cap so the prompt doesn't grow unbounded
+        )
+        parts.append(f"\nVerified corrections from past conversations -- apply these when relevant:\n{corrections_text}")
+
+    return "\n".join(parts)
+
+CASUAL_PATTERNS = {
+    "hi", "hello", "hey", "yo", "sup", "thanks", "thank you", "ok", "okay",
+    "cool", "nice", "bye", "goodbye", "good morning", "good night", "test",
+    "how are you", "how's it going", "what's up", "whats up", "who are you",
+    "what are you", "how are you doing", "what can you do", "help",
+}
+
+
+def _is_casual(text: str) -> bool:
+    cleaned = text.strip().lower().rstrip("!?.")
+    # normalize punctuation like commas so "hi, how are you" behaves
+    # the same as "hi how are you"
+    normalized = cleaned.replace(",", " ").replace("-", " ")
+    words = normalized.split()
+
+    if cleaned in CASUAL_PATTERNS or normalized in CASUAL_PATTERNS:
+        return True
+
+    for prefix in ("hey", "hi", "hello", "ok", "okay", "yo"):
+        stripped = cleaned.removeprefix(prefix).strip()
+        if stripped in ("nova", ""):
+            return True
+
+    # If the whole message is short (<= 6 words) AND is built entirely
+    # from casual words/greetings + "nova", treat it as casual. This
+    # catches combinations like "hi how are you nova" without accidentally
+    # swallowing real questions, since real questions are rarely this short
+    # and built only from these specific words.
+    casual_words = {"hi", "hello", "hey", "yo", "how", "are", "you", "whats",
+                     "what's", "up", "nova", "doing", "there", "sup", "who"}
+    if len(words) <= 6 and all(w in casual_words for w in words):
+        return True
+
+    return False
+
 @dataclass
 class RouteResult:
     answer: str
@@ -45,6 +107,14 @@ class RouteResult:
 def route_query(session_id: str, user_input: str) -> RouteResult:
     memory.add_message(session_id, "user", user_input)
     outcome = None
+
+    if _is_casual(user_input):
+        recent = memory.get_recent_messages(session_id, limit=10)
+        messages = [{"role": "system", "content": _build_system_prompt()}, *recent,
+                    {"role": "user", "content": user_input}]
+        answer = chat(messages)
+        memory.add_message(session_id, "assistant", answer)
+        return RouteResult(answer=answer, mode="casual", sources=[])
 
     hits = knowledge_query(user_input, top_k=RAG_TOP_K)
     top_similarity = hits[0]["similarity"] if hits else 0.0
@@ -64,7 +134,6 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
         outcome = research_topic(user_input)
 
         if outcome is None:
-            # No internet, or search/fetch genuinely found nothing usable.
             mode = "no_local_answer"
             prompt = (
                 "No relevant local context was found for this question, "
@@ -76,7 +145,6 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
                 f"Question: {user_input}"
             )
         else:
-            # Store what was just learned so it's available offline next time.
             ingest_text(
                 outcome.summary,
                 source=f"web_research:{outcome.sources[0]}",
@@ -95,8 +163,8 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
             )
 
     recent = memory.get_recent_messages(session_id, limit=10)
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}, *recent,
-                {"role": "user", "content": prompt}]
+    messages = [{"role": "system", "content": _build_system_prompt()}, *recent,
+                    {"role": "user", "content": user_input}]
 
     answer = chat(messages)
     memory.add_message(session_id, "assistant", answer)

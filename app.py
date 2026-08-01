@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core import memory
@@ -15,9 +17,16 @@ from knowledge.pdf_reader import extract_text_from_pdf
 from knowledge.packs import install_pack, list_available_packs
 from core.memory import get_all_packs
 from knowledge.scheduler import start_scheduler, stop_scheduler, refresh_stale_pack_topics
+from knowledge.internet import verify_claim
+from core.memory import add_correction, get_all_corrections
 
 app = FastAPI(title="NOVA", version="0.1.0")
+app.mount("/static", StaticFiles(directory="ui"), name="static")
 
+
+@app.get("/")
+def serve_ui() -> FileResponse:
+    return FileResponse("ui/index.html")
 
 @app.on_event("startup")
 def on_startup() -> None:
@@ -73,6 +82,16 @@ class InstallPackResponse(BaseModel):
     topics_researched: int
     topics_total: int
     failed_topics: list[str]
+
+class CorrectionRequest(BaseModel):
+    topic: str
+    wrong_info: str
+    correct_info: str
+
+
+class CorrectionResponse(BaseModel):
+    status: str
+    verification_note: str
 
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(req: ChatRequest) -> ChatResponse:
@@ -138,6 +157,16 @@ def pin_endpoint(req: PinRequest) -> PinResponse:
 
     return PinResponse(chunks_updated=updated)
 
+@app.post("/corrections/add", response_model=CorrectionResponse)
+def add_correction_endpoint(req: CorrectionRequest) -> CorrectionResponse:
+    status, note = verify_claim(req.topic, req.correct_info)
+    add_correction(req.topic, req.wrong_info, req.correct_info, status=status, verification_note=note)
+    return CorrectionResponse(status=status, verification_note=note)
+
+
+@app.get("/corrections/list")
+def list_corrections_endpoint() -> dict:
+    return {"corrections": get_all_corrections()}
 
 @app.get("/knowledge/stats")
 def knowledge_stats() -> dict:
