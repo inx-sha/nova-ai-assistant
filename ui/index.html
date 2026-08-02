@@ -75,7 +75,11 @@
 </div>
 
 <script>
-const sessionId = "mobile-" + Math.random().toString(36).slice(2);
+let sessionId = localStorage.getItem("nova_session_id");
+if (!sessionId) {
+  sessionId = "mobile-" + Math.random().toString(36).slice(2);
+  localStorage.setItem("nova_session_id", sessionId);
+}
 const chat = document.getElementById("chat");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
@@ -130,6 +134,22 @@ sendBtn.addEventListener("click", sendMessage);
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
 });
+
+async function loadHistory() {
+  try {
+    const res = await fetch("/history/" + sessionId);
+    if (!res.ok) return;
+    const data = await res.json();
+    for (const msg of data.messages) {
+      addMessage(msg.content, msg.role);
+    }
+  } catch (err) {
+    console.error("Could not load history:", err);
+  }
+}
+
+loadHistory();
+
 </script>
 
 </body>

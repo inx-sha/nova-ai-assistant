@@ -41,6 +41,8 @@ def on_shutdown() -> None:
 def refresh_packs_endpoint() -> dict:
     return refresh_stale_pack_topics()
 
+class HistoryResponse(BaseModel):
+    messages: list[dict]
 
 class ChatRequest(BaseModel):
     session_id: str
@@ -205,6 +207,10 @@ def available_packs() -> dict:
 def installed_packs() -> dict:
     return {"packs": get_all_packs()}
 
+@app.get("/history/{session_id}", response_model=HistoryResponse)
+def get_history_endpoint(session_id: str) -> HistoryResponse:
+    messages = memory.get_recent_messages(session_id, limit=50)
+    return HistoryResponse(messages=messages)
 
 @app.post("/packs/install", response_model=InstallPackResponse)
 def install_pack_endpoint(req: InstallPackRequest) -> InstallPackResponse:
