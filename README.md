@@ -14,7 +14,7 @@ Still in progress. This README covers what's actually built so far.
 - Won't store near-duplicate facts twice (checks similarity before inserting)
 - One chunk can belong to multiple categories at once (e.g. something about a medical device's firmware can be tagged health + technology + embedded-systems without storing it twice)
 - Tiered storage: `cache` (normal, can be cleaned up later), `pinned` (user said keep this), `pack` (bundled domain knowledge, protected). Pruning function exists and is tested, runs automatically via the scheduler.
-- PDF ingestion — upload a PDF, it gets text-extracted, chunked, and stored through the same pipeline as everything else
+- Document ingestion — upload a PDF, DOCX, or plain text/markdown file through `/knowledge/ingest_document`; it gets text-extracted (tables included for DOCX), chunked, and stored through the same pipeline as everything else
 - Domain knowledge packs: bundles of seed topics (e.g. `embedded_systems`) that get proactively researched via the internet-verification pipeline and stored as `tier="pack"` (protected from pruning), so offline mode has a reliable base of knowledge in a chosen domain instead of only what's been asked about live
 - Background scheduler: checks installed packs every 6 hours and re-researches anything older than 7 days, running safely alongside live chat with a shared write lock on the vector store
 - Verified corrections: if you tell NOVA it got something wrong, it doesn't just take your word for it — it independently researches the topic and checks whether your correction actually holds up (`verified`, `disputed`, or `unverified`). Only `verified` corrections get fed into future answers.
@@ -36,7 +36,7 @@ nova/
 │ ├── store.py # ChromaDB wrapper, thread-safe writes
 │ ├── ingest.py # chunking + dedup
 │ ├── internet.py # web search, verification, claim-checking
-│ ├── pdf_reader.py # PDF text extraction
+│ ├── doc_reader.py # PDF text extraction
 │ ├── packs.py # domain knowledge pack definitions + installer
 │ ├── scheduler.py # background pack-freshness checker
 │ └── eval.py # threshold testing
@@ -68,14 +68,35 @@ To use from a phone: connect it to the same WiFi as the PC, find the PC's local 
 - Internet research never trusts one source. It always pulls a few results and checks if they actually agree before treating anything as verified.
 - Corrections work the same way — a user's claim isn't trusted just because they said it. It gets independently researched and compared before it's allowed to influence future answers.
 - Only running Chroma with a single worker, and all writes go through a lock, since Chroma's persistent client isn't safe for concurrent access — this matters more now that the background scheduler and live chat can both want to write at the same time.
-- The model sometimes blends its own pretrained knowledge into answers even when told to only use retrieved context (tested directly — asked about FreeRTOS queues, got a full code example that wasn't in the stored summary at all). Prompt instructions reduce this but don't fully stop it. Known limitation of small local models, not something fully solved here.
-- Personality/tone instructions are followed loosely, not strictly — a 3B model doesn't hold a consistent "voice" as well as something like ChatGPT or Claude does. This is a direct tradeoff of staying fully offline/local instead of using a cloud model — bigger, more consistently personable models need more hardware than what this runs on.
+- The model doesn't reliably follow strict instructions, confirmed across several
+  separate tests, not just a one-off:
+  - Asked about FreeRTOS queues/semaphores — got a fabricated code example
+    not present in the stored context, at one point using invented
+    (non-existent) syntax, at another point using real FreeRTOS API calls
+    pulled from pretrained knowledge rather than stored data
+  - Asked "what is the capital of Mongolia" with nothing stored locally —
+    answered from pretrained knowledge instead of admitting no local
+    answer, despite an explicit instruction not to
+  - Asked to explain the SAP-1 CPU with real project-report context
+    provided — answered with a generic, wrong, 32-bit/register-based CPU
+    explanation from pretrained knowledge, effectively ignoring the actual
+    SAP-1-specific context it was given
+  - A stored "prefers concise answers" preference is visible in the
+    prompt but not consistently followed — verbose answers still happen
+
+  Multiple rounds of prompt tightening reduced but didn't eliminate this.
+  Concluded this is a genuine ceiling of a 3B-parameter model's
+  instruction-following ability, not a prompt-wording problem — a larger
+  model would likely handle this better, but that needs more VRAM than
+  this hardware has. Documented rather than chased further.
+- Personality/tone instructions are followed loosely for the same reason above.
+  This is a direct tradeoff of staying fully offline/local on modest hardware
+  instead of using a cloud model.
 
 ## Not done yet
 
 - RAG thresholds (0.75 / 0.50) are based on a small manual test, not a big benchmark
 - Broad/vague questions ("explain X") retrieve weakly since similarity search rewards specific phrasing — known limitation, not yet addressed
-- No DOCX/plain-text ingestion yet, only PDF
 - No voice, vision, or IoT automation yet
 
 ## Bigger picture

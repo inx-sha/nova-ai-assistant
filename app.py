@@ -13,7 +13,7 @@ from knowledge.store import set_tier, find_chunks_by_source
 import shutil
 import tempfile
 from fastapi import UploadFile, File, Form
-from knowledge.pdf_reader import extract_text_from_pdf
+from knowledge.doc_reader import extract_text_from_pdf, extract_text_from_docx, extract_text_from_txt
 from knowledge.packs import install_pack, list_available_packs
 from core.memory import get_all_packs
 from knowledge.scheduler import start_scheduler, stop_scheduler, refresh_stale_pack_topics
@@ -109,28 +109,47 @@ def ingest_endpoint(req: IngestRequest) -> IngestResponse:
     )
     return IngestResponse(**result)
 
-@app.post("/knowledge/ingest_pdf", response_model=IngestResponse)
-async def ingest_pdf_endpoint(
+SUPPORTED_DOC_EXTENSIONS = {
+    ".pdf": extract_text_from_pdf,
+    ".docx": extract_text_from_docx,
+    ".txt": extract_text_from_txt,
+    ".md": extract_text_from_txt,
+}
+
+
+@app.post("/knowledge/ingest_document", response_model=IngestResponse)
+async def ingest_document_endpoint(
     file: UploadFile = File(...),
     tags: str = Form(""),
     confidence: float = Form(1.0),
     categories: str = Form("general"),
 ) -> IngestResponse:
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    filename_lower = file.filename.lower()
+    extension = None
+    for ext in SUPPORTED_DOC_EXTENSIONS:
+        if filename_lower.endswith(ext):
+            extension = ext
+            break
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    if extension is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type. Supported: {', '.join(SUPPORTED_DOC_EXTENSIONS)}",
+        )
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = tmp.name
 
     try:
-        text = extract_text_from_pdf(tmp_path)
+        extractor = SUPPORTED_DOC_EXTENSIONS[extension]
+        text = extractor(tmp_path)
     finally:
         import os
         os.remove(tmp_path)
 
     if not text.strip():
-        raise HTTPException(status_code=422, detail="No extractable text found in this PDF")
+        raise HTTPException(status_code=422, detail="No extractable text found in this file")
 
     tags_list = [t.strip() for t in tags.split(",") if t.strip()]
     categories_list = [c.strip() for c in categories.split(",") if c.strip()]

@@ -23,6 +23,8 @@ CHROMA_COLLECTION = os.getenv("NOVA_CHROMA_COLLECTION", "knowledge")
 RAG_TOP_K = int(os.getenv("NOVA_RAG_TOP_K", "5"))
 RAG_HIGH_CONFIDENCE = float(os.getenv("NOVA_RAG_HIGH_CONF", "0.75"))
 RAG_LOW_CONFIDENCE = float(os.getenv("NOVA_RAG_LOW_CONF", "0.50"))
+RAG_BROAD_COVERAGE_THRESHOLD = float(os.getenv("NOVA_RAG_BROAD_THRESHOLD", "0.55"))
+RAG_BROAD_MIN_CHUNKS = int(os.getenv("NOVA_RAG_BROAD_MIN_CHUNKS", "3"))
 
 # --- Chunking ---
 CHUNK_SIZE_TOKENS = int(os.getenv("NOVA_CHUNK_SIZE", "512"))

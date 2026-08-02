@@ -1,12 +1,3 @@
-"""
-Router: decides how to answer a user query.
-
-Key design decision: the SIMILARITY SCORE decides confidence, not the
-LLM's own judgment. Small models tend to answer confidently even from
-weak retrieval, so we measure trust with embeddings math and only ask
-the model to generate text over what's already been judged reliable.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,7 +9,7 @@ from knowledge.store import query as knowledge_query
 from knowledge.internet import research_topic
 from knowledge.ingest import ingest_text
 from core.memory import get_all_personal_facts, get_verified_corrections
-
+from config import RAG_TOP_K, RAG_HIGH_CONFIDENCE, RAG_LOW_CONFIDENCE, RAG_BROAD_COVERAGE_THRESHOLD, RAG_BROAD_MIN_CHUNKS
 
 BASE_SYSTEM_PROMPT = (
     "You are NOVA -- a friendly, personal AI assistant, similar in spirit "
@@ -85,11 +76,6 @@ def _is_casual(text: str) -> bool:
         if stripped in ("nova", ""):
             return True
 
-    # If the whole message is short (<= 6 words) AND is built entirely
-    # from casual words/greetings + "nova", treat it as casual. This
-    # catches combinations like "hi how are you nova" without accidentally
-    # swallowing real questions, since real questions are rarely this short
-    # and built only from these specific words.
     casual_words = {"hi", "hello", "hey", "yo", "how", "are", "you", "whats",
                      "what's", "up", "nova", "doing", "there", "sup", "who"}
     if len(words) <= 6 and all(w in casual_words for w in words):
@@ -118,9 +104,14 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
 
     hits = knowledge_query(user_input, top_k=RAG_TOP_K)
     top_similarity = hits[0]["similarity"] if hits else 0.0
+    broad_coverage_count = sum(1 for h in hits if h["similarity"] >= RAG_BROAD_COVERAGE_THRESHOLD)
 
     if top_similarity >= RAG_HIGH_CONFIDENCE:
         mode = "high_confidence"
+        context = _format_context(hits)
+        prompt = f"Context:\n{context}\n\nQuestion: {user_input}"
+    elif broad_coverage_count >= RAG_BROAD_MIN_CHUNKS:
+        mode = "broad_confidence"
         context = _format_context(hits)
         prompt = f"Context:\n{context}\n\nQuestion: {user_input}"
     elif top_similarity >= RAG_LOW_CONFIDENCE:
