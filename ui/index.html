@@ -210,7 +210,6 @@
   <div id="starredPanel" style="display:none;position:absolute;top:60px;right:16px;width:320px;max-height:400px;overflow-y:auto;background:#1a1c22;border:1px solid #2a2d34;border-radius:8px;padding:12px;z-index:20;"></div>
   <div id="pinnedBar" style="display:none;padding:10px 16px;background:#1a1c22;border-bottom:1px solid #2a2d34;font-size:0.85em;"></div>
   <div id="chat" style="display:none;"></div>
-  <div id="chat" style="display:none;"></div>
   <div id="emptyState">
     <h2>What can I help with?</h2>
     <div>
@@ -288,6 +287,9 @@ function attachActions(div, role, text, userMsgId, assistantMsgId) {
     });
     starBtn.dataset.active = isStarred ? "false" : "true";
     starBtn.style.color = isStarred ? "#888" : "#e0c341";
+    if (starredPanel.style.display === "block") {
+      loadStarred();
+    }
   });
   actions.appendChild(starBtn);
 
@@ -368,75 +370,77 @@ function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId) {
 }
 
 
+let starredData = null;
+
 async function loadStarred() {
-
   const res = await fetch("/starred");
-
-  const data = await res.json();
-
-  starredPanel.innerHTML = "<strong>⭐ Starred messages</strong><br><br>";
-
-  const modes = Object.keys(data.starred_by_mode);
-
-  if (!modes.length) {
-
-    starredPanel.innerHTML += "<span style='color:#666;'>Nothing starred yet.</span>";
-
-    return;
-
-  }
-
-  for (const mode of modes) {
-
-    const heading = document.createElement("div");
-
-    heading.style.cssText = "font-weight:600;margin-top:10px;color:#6fb8dc;";
-
-    heading.textContent = mode === "general" ? "General" : mode.replace(/_/g, " ");
-
-    starredPanel.appendChild(heading);
-
-    for (const msg of data.starred_by_mode[mode]) {
-
-      const item = document.createElement("div");
-
-      item.style.cssText = "font-size:0.85em;color:#ccc;padding:6px 0;border-bottom:1px solid #2a2d34;cursor:pointer;";
-
-      item.textContent = msg.content.slice(0, 80) + (msg.content.length > 80 ? "..." : "");
-
-      item.addEventListener("click", () => {
-
-        switchSession(msg.session_id);
-
-        starredPanel.style.display = "none";
-
-      });
-
-      starredPanel.appendChild(item);
-
-    }
-
-  }
-
+  starredData = (await res.json()).starred_by_mode;
+  renderStarredPanel();
 }
 
-document.getElementById("starredBtn").addEventListener("click", async () => {
+function renderStarredPanel() {
+  starredPanel.innerHTML = "";
 
-  const isVisible = starredPanel.style.display === "block";
+  const header = document.createElement("div");
+  header.innerHTML = "<strong>⭐ Starred messages</strong>";
+  starredPanel.appendChild(header);
 
-  if (isVisible) {
-
-    starredPanel.style.display = "none";
-
-  } else {
-
-    await loadStarred();
-
-    starredPanel.style.display = "block";
-
+  const modes = Object.keys(starredData);
+  if (!modes.length) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "color:#666;margin-top:10px;";
+    empty.textContent = "Nothing starred yet.";
+    starredPanel.appendChild(empty);
+    return;
   }
 
-});
+  const filterSelect = document.createElement("select");
+  filterSelect.style.cssText = "margin-top:10px;width:100%;background:#0f1115;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px;";
+  const allOpt = document.createElement("option");
+  allOpt.value = "__all__";
+  allOpt.textContent = "All modes";
+  filterSelect.appendChild(allOpt);
+  for (const mode of modes) {
+    const opt = document.createElement("option");
+    opt.value = mode;
+    opt.textContent = mode === "general" ? "General" : mode.replace(/_/g, " ");
+    filterSelect.appendChild(opt);
+  }
+  filterSelect.addEventListener("change", () => renderStarredResults(filterSelect.value));
+  starredPanel.appendChild(filterSelect);
+
+  const resultsDiv = document.createElement("div");
+  resultsDiv.id = "starredResults";
+  resultsDiv.style.marginTop = "10px";
+  starredPanel.appendChild(resultsDiv);
+
+  renderStarredResults("__all__");
+}
+
+function renderStarredResults(filterMode) {
+  const resultsDiv = document.getElementById("starredResults");
+  resultsDiv.innerHTML = "";
+
+  const modesToShow = filterMode === "__all__" ? Object.keys(starredData) : [filterMode];
+
+  for (const mode of modesToShow) {
+    const heading = document.createElement("div");
+    heading.style.cssText = "font-weight:600;margin-top:10px;color:#6fb8dc;";
+    heading.textContent = mode === "general" ? "General" : mode.replace(/_/g, " ");
+    resultsDiv.appendChild(heading);
+
+    for (const msg of starredData[mode]) {
+      const item = document.createElement("div");
+      item.style.cssText = "font-size:0.85em;color:#ccc;padding:6px 0;border-bottom:1px solid #2a2d34;cursor:pointer;";
+      item.textContent = msg.content.slice(0, 80) + (msg.content.length > 80 ? "..." : "");
+      item.addEventListener("click", () => {
+        switchSession(msg.session_id);
+        starredPanel.style.display = "none";
+      });
+      resultsDiv.appendChild(item);
+    }
+  }
+}
 
 async function sendMessage(text) {
   text = (text || input.value).trim();
@@ -615,6 +619,16 @@ input.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage();
 document.getElementById("sidebarToggle").addEventListener("click", () => sidebar.classList.toggle("collapsed"));
 document.querySelectorAll(".example-chip").forEach(chip => {
   chip.addEventListener("click", () => sendMessage(chip.dataset.q));
+});
+
+document.getElementById("starredBtn").addEventListener("click", async () => {
+  const isVisible = starredPanel.style.display === "block";
+  if (isVisible) {
+    starredPanel.style.display = "none";
+  } else {
+    await loadStarred();
+    starredPanel.style.display = "block";
+  }
 });
 
 async function init() {
