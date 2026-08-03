@@ -350,6 +350,11 @@ def get_all_sessions(include_archived: bool = False) -> list[dict]:
         })
     return sessions
 
+def get_all_distinct_modes() -> list[str]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT DISTINCT mode FROM sessions").fetchall()
+    return [r["mode"] for r in rows]
+
 def delete_messages_by_ids(message_ids: list[int]) -> int:
     if not message_ids:
         return 0

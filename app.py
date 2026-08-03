@@ -280,7 +280,12 @@ def list_sessions_endpoint() -> SessionsListResponse:
 
 @app.get("/modes")
 def list_modes_endpoint() -> dict:
-    return {"modes": ["general"] + list_available_packs()}
+    from core.memory import get_all_distinct_modes
+    pack_modes = list_available_packs()
+    custom_modes = set(get_all_distinct_modes())
+    all_modes = sorted(custom_modes | set(pack_modes) | {"general"})
+    all_modes.remove("general")
+    return {"modes": ["general"] + all_modes}
 
 @app.delete("/sessions/{session_id}")
 def delete_session_endpoint(session_id: str) -> dict:

@@ -204,6 +204,7 @@
     <button id="sidebarToggle">☰</button>
     NOVA
     <select id="modeSelect" style="margin-left:auto;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px;"></select>
+<button id="newModeBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">+</button>
 </header>
 
   <div id="chat" style="display:none;"></div>
@@ -401,6 +402,22 @@ modeSelect.addEventListener("change", async () => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: modeSelect.value }),
   });
+  loadSessions();
+});
+
+document.getElementById("newModeBtn").addEventListener("click", async () => {
+  const name = prompt("Name this mode (e.g. 'cooking', 'personal_finance'):");
+  if (!name) return;
+  const normalized = name.trim().toLowerCase().replace(/\s+/g, "_");
+  if (!normalized) return;
+
+  await fetch("/sessions/" + sessionId + "/mode", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: normalized }),
+  });
+  await loadModes();
+  modeSelect.value = normalized;
   loadSessions();
 });
 
