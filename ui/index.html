@@ -197,6 +197,7 @@
 <div id="sidebar">
   <button id="newChatBtn">+ New chat</button>
   <div id="sessionList"></div>
+  <div id="archivedToggle" style="padding:10px 16px;font-size:0.8em;color:#666;cursor:pointer;border-top:1px solid #2a2d34;">Show archived</div>
 </div>
 
 <div id="main">
@@ -220,9 +221,11 @@
   </div>
 
   <div id="inputBar">
+    <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.md" style="display:none;">
+    <button id="attachBtn" style="padding:12px;border-radius:8px;border:1px solid #2a2d34;background:#1a1c22;color:white;cursor:pointer;">📎</button>
     <input id="messageInput" type="text" placeholder="Ask NOVA..." autocomplete="off">
     <button id="sendBtn">Send</button>
-  </div>
+</div>
 </div>
 
 <script>
@@ -242,6 +245,8 @@ const sidebar = document.getElementById("sidebar");
 const newChatBtn = document.getElementById("newChatBtn");
 const modeSelect = document.getElementById("modeSelect");
 const starredPanel = document.getElementById("starredPanel");
+const fileInput = document.getElementById("fileInput");
+const attachBtn = document.getElementById("attachBtn");
 
 function showChat(hasMessages) {
   chat.style.display = hasMessages ? "flex" : "none";
@@ -516,12 +521,20 @@ async function loadHistory(id) {
   }
 }
 
+let showArchived = false;
+
 async function loadSessions() {
   try {
-    const res = await fetch("/sessions");
+    const url = showArchived ? "/sessions?include_archived=true" : "/sessions";
+    const res = await fetch(url);
     const data = await res.json();
     sessionList.innerHTML = "";
-    for (const s of data.sessions) {
+
+    const visibleSessions = showArchived
+      ? data.sessions.filter(s => s.archived)
+      : data.sessions.filter(s => !s.archived);
+
+    for (const s of visibleSessions) {
       const item = document.createElement("div");
       item.className = "session-item" + (s.session_id === sessionId ? " active" : "");
 
@@ -529,6 +542,21 @@ async function loadSessions() {
       title.className = "session-title";
       title.textContent = s.title;
       title.addEventListener("click", () => switchSession(s.session_id));
+
+      const archiveBtn = document.createElement("span");
+      archiveBtn.className = "session-delete";
+      archiveBtn.textContent = s.archived ? "↩" : "🗄";
+      archiveBtn.title = s.archived ? "Unarchive" : "Archive";
+      archiveBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await fetch("/sessions/" + s.session_id + "/archive", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ archived: !s.archived }),
+        });
+        if (s.session_id === sessionId && !s.archived) startNewChat();
+        loadSessions();
+      });
 
       const del = document.createElement("span");
       del.className = "session-delete";
@@ -541,6 +569,7 @@ async function loadSessions() {
       });
 
       item.appendChild(title);
+      item.appendChild(archiveBtn);
       item.appendChild(del);
       sessionList.appendChild(item);
     }
@@ -548,6 +577,12 @@ async function loadSessions() {
     console.error("Could not load sessions:", err);
   }
 }
+
+document.getElementById("archivedToggle").addEventListener("click", () => {
+  showArchived = !showArchived;
+  document.getElementById("archivedToggle").textContent = showArchived ? "Show active" : "Show archived";
+  loadSessions();
+});
 
 async function loadModes() {
   const res = await fetch("/modes");
@@ -612,6 +647,49 @@ function startNewChat() {
   syncModeSelect();
   loadSessions();
 }
+
+attachBtn.addEventListener("click", () => fileInput.click());
+
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  addMessage(`📎 Uploading "${file.name}"...`, "user");
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("tags", "chat-upload");
+  formData.append("confidence", "1.0");
+
+  const currentModeRes = await fetch("/sessions");
+  const sessionsData = await currentModeRes.json();
+  const current = sessionsData.sessions.find(s => s.session_id === sessionId);
+  const mode = current ? current.mode : "general";
+  formData.append("categories", mode);
+
+  try {
+    const res = await fetch("/knowledge/ingest_document", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    addMessage(
+      `"${file.name}" processed: ${data.chunks_stored} chunks stored` +
+      (data.chunks_skipped_as_duplicate ? `, ${data.chunks_skipped_as_duplicate} skipped as duplicate` : "") +
+      `. Ask me anything about it!`,
+      "assistant"
+    );
+  } catch (err) {
+    addMessage("Error uploading file: " + err, "assistant");
+  }
+
+  fileInput.value = "";
+});
+
+newChatBtn.addEventListener("click", startNewChat);
+sendBtn.addEventListener("click", () => sendMessage());
+input.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+document.getElementById("sidebarToggle").addEventListener("click", () => sidebar.classList.toggle("collapsed"));
 
 newChatBtn.addEventListener("click", startNewChat);
 sendBtn.addEventListener("click", () => sendMessage());

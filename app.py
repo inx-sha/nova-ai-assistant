@@ -139,6 +139,15 @@ class RetryRequest(BaseModel):
     message_id: int
     new_message: str
 
+class ArchiveRequest(BaseModel):
+    archived: bool
+
+@app.post("/sessions/{session_id}/archive")
+def archive_session_endpoint(session_id: str, req: ArchiveRequest) -> dict:
+    from core.memory import set_session_archived
+    set_session_archived(session_id, req.archived)
+    return {"session_id": session_id, "archived": req.archived}
+
 @app.post("/sessions/move_message")
 def move_message_endpoint(req: MoveMessageRequest) -> dict:
     from core.memory import ensure_session, delete_messages_by_ids, set_session_mode
@@ -329,8 +338,8 @@ def get_history_endpoint(session_id: str) -> HistoryResponse:
     return HistoryResponse(messages=messages)
 
 @app.get("/sessions", response_model=SessionsListResponse)
-def list_sessions_endpoint() -> SessionsListResponse:
-    return SessionsListResponse(sessions=get_all_sessions())
+def list_sessions_endpoint(include_archived: bool = False) -> SessionsListResponse:
+    return SessionsListResponse(sessions=get_all_sessions(include_archived=include_archived))
 
 @app.get("/modes")
 def list_modes_endpoint() -> dict:
