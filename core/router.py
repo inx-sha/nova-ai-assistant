@@ -8,7 +8,7 @@ from core.llm import chat
 from knowledge.store import query as knowledge_query
 from knowledge.internet import research_topic
 from knowledge.ingest import ingest_text
-from core.memory import get_all_personal_facts, get_verified_corrections
+from core.memory import get_all_personal_facts, get_verified_corrections, ensure_session, get_session_mode
 from config import RAG_TOP_K, RAG_HIGH_CONFIDENCE, RAG_LOW_CONFIDENCE, RAG_BROAD_COVERAGE_THRESHOLD, RAG_BROAD_MIN_CHUNKS
 
 BASE_SYSTEM_PROMPT = (
@@ -86,11 +86,14 @@ def _is_casual(text: str) -> bool:
 @dataclass
 class RouteResult:
     answer: str
-    mode: str  # "high_confidence" | "low_confidence" | "no_local_answer" | "learned_from_internet"
+    mode: str
     sources: list[str]
+    filed_elsewhere: bool = False
 
 
 def route_query(session_id: str, user_input: str) -> RouteResult:
+    ensure_session(session_id)
+    session_mode = get_session_mode(session_id)
     memory.add_message(session_id, "user", user_input)
     outcome = None
 
@@ -100,9 +103,13 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
                     {"role": "user", "content": user_input}]
         answer = chat(messages)
         memory.add_message(session_id, "assistant", answer)
-        return RouteResult(answer=answer, mode="casual", sources=[])
+        return RouteResult(
+        answer=answer, mode=mode, sources=sources,
+        filed_elsewhere=(mode == "learned_from_internet" and category_filter is not None),
+    )
 
-    hits = knowledge_query(user_input, top_k=RAG_TOP_K)
+    category_filter = session_mode if session_mode != "general" else None
+    hits = knowledge_query(user_input, top_k=RAG_TOP_K, category_filter=category_filter)
     top_similarity = hits[0]["similarity"] if hits else 0.0
     broad_coverage_count = sum(1 for h in hits if h["similarity"] >= RAG_BROAD_COVERAGE_THRESHOLD)
 

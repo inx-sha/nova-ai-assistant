@@ -19,6 +19,7 @@ from core.memory import get_all_packs
 from knowledge.scheduler import start_scheduler, stop_scheduler, refresh_stale_pack_topics
 from knowledge.internet import verify_claim
 from core.memory import add_correction, get_all_corrections
+from core.memory import get_all_sessions, delete_session
 
 app = FastAPI(title="NOVA", version="0.1.0")
 app.mount("/static", StaticFiles(directory="ui"), name="static")
@@ -53,6 +54,7 @@ class ChatResponse(BaseModel):
     answer: str
     mode: str
     sources: list[str]
+    filed_elsewhere: bool = False
 
 
 class IngestRequest(BaseModel):
@@ -95,12 +97,38 @@ class CorrectionResponse(BaseModel):
     status: str
     verification_note: str
 
+class SessionInfo(BaseModel):
+    session_id: str
+    title: str
+    last_activity: str
+
+
+class SessionsListResponse(BaseModel):
+    sessions: list[SessionInfo]
+
+class MoveMessageRequest(BaseModel):
+    target_session_id: str
+    user_message: str
+    assistant_message: str
+
+
+@app.post("/sessions/move_message")
+def move_message_endpoint(req: MoveMessageRequest) -> dict:
+    from core.memory import ensure_session
+    ensure_session(req.target_session_id, mode="general")
+    memory.add_message(req.target_session_id, "user", req.user_message)
+    memory.add_message(req.target_session_id, "assistant", req.assistant_message)
+    return {"moved_to": req.target_session_id}
+
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(req: ChatRequest) -> ChatResponse:
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="message cannot be empty")
     result = route_query(req.session_id, req.message)
-    return ChatResponse(answer=result.answer, mode=result.mode, sources=result.sources)
+    return ChatResponse(
+        answer=result.answer, mode=result.mode, sources=result.sources,
+        filed_elsewhere=result.filed_elsewhere,
+    )
 
 
 @app.post("/knowledge/ingest", response_model=IngestResponse)
@@ -184,6 +212,13 @@ def add_correction_endpoint(req: CorrectionRequest) -> CorrectionResponse:
     add_correction(req.topic, req.wrong_info, req.correct_info, status=status, verification_note=note)
     return CorrectionResponse(status=status, verification_note=note)
 
+@app.post("/packs/install", response_model=InstallPackResponse)
+def install_pack_endpoint(req: InstallPackRequest) -> InstallPackResponse:
+    try:
+        result = install_pack(req.name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return InstallPackResponse(**result)
 
 @app.get("/corrections/list")
 def list_corrections_endpoint() -> dict:
@@ -212,10 +247,13 @@ def get_history_endpoint(session_id: str) -> HistoryResponse:
     messages = memory.get_recent_messages(session_id, limit=50)
     return HistoryResponse(messages=messages)
 
-@app.post("/packs/install", response_model=InstallPackResponse)
-def install_pack_endpoint(req: InstallPackRequest) -> InstallPackResponse:
-    try:
-        result = install_pack(req.name)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return InstallPackResponse(**result)
+@app.get("/sessions", response_model=SessionsListResponse)
+def list_sessions_endpoint() -> SessionsListResponse:
+    return SessionsListResponse(sessions=get_all_sessions())
+
+
+@app.delete("/sessions/{session_id}")
+def delete_session_endpoint(session_id: str) -> dict:
+    deleted = delete_session(session_id)
+    return {"deleted_messages": deleted}
+

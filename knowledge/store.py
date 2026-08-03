@@ -50,7 +50,45 @@ def add_chunk(text: str, source: str, tags: list[str] | None = None,
     return chunk_id
 
 
-def query(text: str, top_k: int = 5) -> list[dict]:
+def query(text: str, top_k: int = 5, category_filter: str | None = None) -> list[dict]:
+    """
+    Returns [{"text", "metadata", "similarity"}, ...] sorted best-first.
+    If category_filter is set, only chunks whose categories include it
+    are considered -- filtered in Python after retrieval, since Chroma's
+    metadata filtering doesn't reliably substring-match our comma-joined
+    categories field.
+    """
+    vector = embed(text)
+    # Pull more candidates than requested when filtering, since some
+    # will get discarded -- otherwise a filtered query could return
+    # fewer than top_k results even when enough matches actually exist.
+    fetch_k = top_k * 4 if category_filter else top_k
+
+    with _write_lock:
+        results = get_collection().query(
+            query_embeddings=[vector],
+            n_results=fetch_k,
+        )
+
+    out = []
+    docs = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
+    dists = results.get("distances", [[]])[0]
+
+    for doc, meta, dist in zip(docs, metas, dists):
+        if category_filter:
+            categories = meta.get("categories", "").split(",")
+            if category_filter not in categories:
+                continue
+        out.append({
+            "text": doc,
+            "metadata": meta,
+            "similarity": 1 - dist,
+        })
+        if len(out) >= top_k:
+            break
+
+    return out
     """..."""
     vector = embed(text)
     with _write_lock:

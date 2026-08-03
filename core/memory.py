@@ -60,6 +60,14 @@ CREATE TABLE IF NOT EXISTS corrections (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id TEXT PRIMARY KEY,
+    mode TEXT NOT NULL DEFAULT 'general',
+    archived INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id);
 """
 
@@ -230,3 +238,107 @@ def get_verified_corrections() -> list[dict]:
             "SELECT * FROM corrections WHERE status = 'verified' ORDER BY id DESC"
         ).fetchall()
     return [dict(r) for r in rows]
+
+# --- Session listing ---
+
+def get_all_sessions() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT session_id,
+                   MIN(CASE WHEN role = 'user' THEN content END) AS first_message,
+                   MAX(timestamp) AS last_activity
+            FROM conversations
+            GROUP BY session_id
+            ORDER BY last_activity DESC
+            """
+        ).fetchall()
+
+    sessions = []
+    for r in rows:
+        title = (r["first_message"] or "New chat")[:60]
+        sessions.append({
+            "session_id": r["session_id"],
+            "title": title,
+            "last_activity": r["last_activity"],
+        })
+    return sessions
+
+
+def delete_session(session_id: str) -> int:
+    """Deletes all messages for a session. Returns count deleted."""
+    with get_conn() as conn:
+        cursor = conn.execute(
+            "DELETE FROM conversations WHERE session_id = ?", (session_id,)
+        )
+        return cursor.rowcount
+
+# --- Session metadata ---
+
+def ensure_session(session_id: str, mode: str = "general") -> None:
+    """Creates a session row if it doesn't exist yet. No-op otherwise."""
+    now = _now()
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT session_id FROM sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                "INSERT INTO sessions (session_id, mode, archived, created_at, updated_at) "
+                "VALUES (?, ?, 0, ?, ?)",
+                (session_id, mode, now, now),
+            )
+
+
+def get_session_mode(session_id: str) -> str:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT mode FROM sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+    return row["mode"] if row else "general"
+
+
+def set_session_archived(session_id: str, archived: bool) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE sessions SET archived = ?, updated_at = ? WHERE session_id = ?",
+            (int(archived), _now(), session_id),
+        )
+
+
+def get_all_sessions(include_archived: bool = False) -> list[dict]:
+    """
+    Returns one entry per distinct session with title, last activity,
+    mode, and archived status -- everything the sidebar needs.
+    """
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT c.session_id,
+                   MIN(CASE WHEN c.role = 'user' THEN c.content END) AS first_message,
+                   MAX(c.timestamp) AS last_activity
+            FROM conversations c
+            GROUP BY c.session_id
+            ORDER BY last_activity DESC
+            """
+        ).fetchall()
+
+        session_meta = {
+            r["session_id"]: {"mode": r["mode"], "archived": r["archived"]}
+            for r in conn.execute("SELECT session_id, mode, archived FROM sessions").fetchall()
+        }
+
+    sessions = []
+    for r in rows:
+        meta = session_meta.get(r["session_id"], {"mode": "general", "archived": 0})
+        if not include_archived and meta["archived"]:
+            continue
+        title = (r["first_message"] or "New chat")[:60]
+        sessions.append({
+            "session_id": r["session_id"],
+            "title": title,
+            "last_activity": r["last_activity"],
+            "mode": meta["mode"],
+            "archived": bool(meta["archived"]),
+        })
+    return sessions
