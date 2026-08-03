@@ -205,8 +205,11 @@
     NOVA
     <select id="modeSelect" style="margin-left:auto;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px;"></select>
 <button id="newModeBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">+</button>
+<button id="starredBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">⭐</button>
 </header>
-
+  <div id="starredPanel" style="display:none;position:absolute;top:60px;right:16px;width:320px;max-height:400px;overflow-y:auto;background:#1a1c22;border:1px solid #2a2d34;border-radius:8px;padding:12px;z-index:20;"></div>
+  <div id="pinnedBar" style="display:none;padding:10px 16px;background:#1a1c22;border-bottom:1px solid #2a2d34;font-size:0.85em;"></div>
+  <div id="chat" style="display:none;"></div>
   <div id="chat" style="display:none;"></div>
   <div id="emptyState">
     <h2>What can I help with?</h2>
@@ -239,16 +242,80 @@ const sessionList = document.getElementById("sessionList");
 const sidebar = document.getElementById("sidebar");
 const newChatBtn = document.getElementById("newChatBtn");
 const modeSelect = document.getElementById("modeSelect");
+const starredPanel = document.getElementById("starredPanel");
 
 function showChat(hasMessages) {
   chat.style.display = hasMessages ? "flex" : "none";
   emptyState.style.display = hasMessages ? "none" : "flex";
 }
+function attachActions(div, role, text, userMsgId, assistantMsgId) {
+  const msgId = role === "user" ? userMsgId : assistantMsgId;
+  if (!msgId) return;
+
+  const actions = document.createElement("div");
+  actions.style.cssText = "margin-top:6px;display:flex;gap:6px;";
+
+  const mkBtn = (label, title, onClick) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.title = title;
+    b.style.cssText = "font-size:0.75em;padding:2px 6px;border-radius:5px;border:1px solid #2a2d34;background:transparent;color:#888;cursor:pointer;";
+    b.addEventListener("click", onClick);
+    return b;
+  };
+
+  actions.appendChild(mkBtn("📋", "Copy", () => {
+    navigator.clipboard.writeText(text);
+  }));
+
+  const pinBtn = mkBtn("📌", "Pin/unpin", async (e) => {
+    const isPinned = pinBtn.dataset.active === "true";
+    await fetch(isPinned ? "/messages/unpin" : "/messages/pin", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message_id: msgId }),
+    });
+    pinBtn.dataset.active = isPinned ? "false" : "true";
+    pinBtn.style.color = isPinned ? "#888" : "#2f6feb";
+    loadPinned();
+  });
+  actions.appendChild(pinBtn);
+
+  const starBtn = mkBtn("⭐", "Star/unstar", async (e) => {
+    const isStarred = starBtn.dataset.active === "true";
+    await fetch(isStarred ? "/messages/unstar" : "/messages/star", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message_id: msgId }),
+    });
+    starBtn.dataset.active = isStarred ? "false" : "true";
+    starBtn.style.color = isStarred ? "#888" : "#e0c341";
+  });
+  actions.appendChild(starBtn);
+
+  if (role === "user") {
+    actions.appendChild(mkBtn("✏️", "Edit & retry", async () => {
+      const newText = prompt("Edit your message:", text);
+      if (!newText || newText === text) return;
+      const res = await fetch("/chat/retry", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, message_id: msgId, new_message: newText }),
+      });
+      loadHistory(sessionId);
+    }));
+  }
+
+  div.appendChild(actions);
+}
 
 function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId) {
   const div = document.createElement("div");
   div.className = "msg " + role;
-  div.textContent = text;
+
+  const textDiv = document.createElement("div");
+  textDiv.textContent = text;
+  div.appendChild(textDiv);
+
+  const msgId = role === "user" ? userMsgId : assistantMsgId;
+
   if (meta) {
     const metaDiv = document.createElement("div");
     metaDiv.className = "meta";
@@ -290,16 +357,93 @@ function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId) {
       div.appendChild(prompt);
     }
   }
+
+  if (msgId) {
+    attachActions(div, role, text, userMsgId, assistantMsgId);
+  }
+
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   showChat(true);
 }
+
+
+async function loadStarred() {
+
+  const res = await fetch("/starred");
+
+  const data = await res.json();
+
+  starredPanel.innerHTML = "<strong>⭐ Starred messages</strong><br><br>";
+
+  const modes = Object.keys(data.starred_by_mode);
+
+  if (!modes.length) {
+
+    starredPanel.innerHTML += "<span style='color:#666;'>Nothing starred yet.</span>";
+
+    return;
+
+  }
+
+  for (const mode of modes) {
+
+    const heading = document.createElement("div");
+
+    heading.style.cssText = "font-weight:600;margin-top:10px;color:#6fb8dc;";
+
+    heading.textContent = mode === "general" ? "General" : mode.replace(/_/g, " ");
+
+    starredPanel.appendChild(heading);
+
+    for (const msg of data.starred_by_mode[mode]) {
+
+      const item = document.createElement("div");
+
+      item.style.cssText = "font-size:0.85em;color:#ccc;padding:6px 0;border-bottom:1px solid #2a2d34;cursor:pointer;";
+
+      item.textContent = msg.content.slice(0, 80) + (msg.content.length > 80 ? "..." : "");
+
+      item.addEventListener("click", () => {
+
+        switchSession(msg.session_id);
+
+        starredPanel.style.display = "none";
+
+      });
+
+      starredPanel.appendChild(item);
+
+    }
+
+  }
+
+}
+
+document.getElementById("starredBtn").addEventListener("click", async () => {
+
+  const isVisible = starredPanel.style.display === "block";
+
+  if (isVisible) {
+
+    starredPanel.style.display = "none";
+
+  } else {
+
+    await loadStarred();
+
+    starredPanel.style.display = "block";
+
+  }
+
+});
 
 async function sendMessage(text) {
   text = (text || input.value).trim();
   if (!text) return;
 
   addMessage(text, "user");
+  const userDiv = chat.lastElementChild;
   input.value = "";
   sendBtn.disabled = true;
 
@@ -317,6 +461,7 @@ async function sendMessage(text) {
     });
     const data = await res.json();
     thinkingDiv.remove();
+    attachActions(userDiv, "user", text, data.user_message_id, data.user_message_id);
     addMessage(data.answer, "assistant", { mode: data.mode, sources: data.sources, filed_elsewhere: data.filed_elsewhere }, text, data.user_message_id, data.assistant_message_id);
     loadSessions();
   } catch (err) {
@@ -324,6 +469,29 @@ async function sendMessage(text) {
     addMessage("Error: could not reach NOVA. " + err, "assistant");
   } finally {
     sendBtn.disabled = false;
+  }
+}
+
+const pinnedBar = document.getElementById("pinnedBar");
+
+async function loadPinned() {
+  try {
+    const res = await fetch("/sessions/" + sessionId + "/pinned");
+    const data = await res.json();
+    if (!data.pinned.length) {
+      pinnedBar.style.display = "none";
+      return;
+    }
+    pinnedBar.innerHTML = "<strong>📌 Pinned:</strong> ";
+    data.pinned.forEach((m, i) => {
+      const span = document.createElement("span");
+      span.textContent = m.content.slice(0, 60) + (m.content.length > 60 ? "..." : "");
+      span.style.cssText = "color:#aaa;margin-right:10px;";
+      pinnedBar.appendChild(span);
+    });
+    pinnedBar.style.display = "block";
+  } catch (err) {
+    pinnedBar.style.display = "none";
   }
 }
 
@@ -335,7 +503,9 @@ async function loadHistory(id) {
     const data = await res.json();
     if (!data.messages.length) { showChat(false); return; }
     for (const msg of data.messages) {
-      addMessage(msg.content, msg.role);
+      const id = msg.role === "user" ? msg.id : undefined;
+      const assistantId = msg.role === "assistant" ? msg.id : undefined;
+      addMessage(msg.content, msg.role, null, null, id, assistantId);
     }
   } catch (err) {
     showChat(false);
@@ -427,6 +597,7 @@ function switchSession(id) {
   loadHistory(sessionId);
   loadSessions();
   syncModeSelect();
+  loadPinned();
 }
 
 function startNewChat() {
@@ -450,6 +621,7 @@ async function init() {
   await loadModes();
   await loadHistory(sessionId);
   await loadSessions();
+  await loadPinned();
 }
 init();
 </script>

@@ -90,6 +90,17 @@ def get_conn() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        _migrate_add_column(conn, "conversations", "pinned", "INTEGER NOT NULL DEFAULT 0")
+        _migrate_add_column(conn, "conversations", "starred", "INTEGER NOT NULL DEFAULT 0")
+
+
+def _migrate_add_column(conn, table: str, column: str, definition: str) -> None:
+    """Adds a column to an existing table if it doesn't already exist --
+    safe to call every startup, unlike CREATE TABLE IF NOT EXISTS which
+    can't add columns to a table that already exists."""
+    existing_columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in existing_columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 # --- Conversation memory ---
@@ -112,6 +123,14 @@ def get_recent_messages(session_id: str, limit: int = 20) -> list[dict]:
         ).fetchall()
     return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
 
+def get_session_history_with_ids(session_id: str, limit: int = 50) -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, role, content, pinned, starred FROM conversations "
+            "WHERE session_id = ? ORDER BY id ASC LIMIT ?",
+            (session_id, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 # --- Personal memory ---
 
@@ -362,5 +381,81 @@ def delete_messages_by_ids(message_ids: list[int]) -> int:
     with get_conn() as conn:
         cursor = conn.execute(
             f"DELETE FROM conversations WHERE id IN ({placeholders})", message_ids
+        )
+        return cursor.rowcount
+
+# --- Message pin/star/edit ---
+
+def set_message_pinned(message_id: int, pinned: bool) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE conversations SET pinned = ? WHERE id = ?",
+            (int(pinned), message_id),
+        )
+
+
+def set_message_starred(message_id: int, starred: bool) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE conversations SET starred = ? WHERE id = ?",
+            (int(starred), message_id),
+        )
+
+
+def get_pinned_messages(session_id: str) -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, role, content, timestamp FROM conversations "
+            "WHERE session_id = ? AND pinned = 1 ORDER BY id ASC",
+            (session_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_starred_messages_by_mode() -> dict:
+    """
+    Returns starred messages grouped by their session's mode -- e.g.
+    {"embedded_systems": [...], "general": [...]}, matching the
+    "star according to their mode" requirement.
+    """
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT c.id, c.role, c.content, c.timestamp, c.session_id,
+                   COALESCE(s.mode, 'general') AS mode
+            FROM conversations c
+            LEFT JOIN sessions s ON c.session_id = s.session_id
+            WHERE c.starred = 1
+            ORDER BY c.id ASC
+            """
+        ).fetchall()
+
+    grouped: dict[str, list[dict]] = {}
+    for r in rows:
+        grouped.setdefault(r["mode"], []).append({
+            "id": r["id"], "role": r["role"], "content": r["content"],
+            "timestamp": r["timestamp"], "session_id": r["session_id"],
+        })
+    return grouped
+
+
+def edit_message(message_id: int, new_content: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE conversations SET content = ? WHERE id = ?",
+            (new_content, message_id),
+        )
+
+
+def delete_messages_after(session_id: str, message_id: int) -> int:
+    """
+    Deletes every message in a session that comes AFTER the given one --
+    used for 'retry': edit/resend a question, discard everything that
+    followed the original answer, since it's no longer valid context.
+    """
+    with get_conn() as conn:
+        cursor = conn.execute(
+            "DELETE FROM conversations WHERE session_id = ? AND id > ?",
+            (session_id, message_id),
         )
         return cursor.rowcount

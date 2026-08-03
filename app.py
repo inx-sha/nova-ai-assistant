@@ -22,6 +22,10 @@ from core.memory import add_correction, get_all_corrections
 from core.memory import get_all_sessions, delete_session
 from knowledge.packs import list_available_packs
 from core.memory import set_session_mode as _set_session_mode
+from core.memory import (
+    set_message_pinned, set_message_starred, get_pinned_messages,
+    get_starred_messages_by_mode, edit_message, delete_messages_after,
+)
 
 app = FastAPI(title="NOVA", version="0.1.0")
 app.mount("/static", StaticFiles(directory="ui"), name="static")
@@ -121,6 +125,19 @@ class MoveMessageRequest(BaseModel):
 
 class SetModeRequest(BaseModel):
     mode: str
+
+class MessageActionRequest(BaseModel):
+    message_id: int
+
+
+class EditMessageRequest(BaseModel):
+    message_id: int
+    new_content: str
+
+class RetryRequest(BaseModel):
+    session_id: str
+    message_id: int
+    new_message: str
 
 @app.post("/sessions/move_message")
 def move_message_endpoint(req: MoveMessageRequest) -> dict:
@@ -247,6 +264,42 @@ def set_session_mode_endpoint(session_id: str, req: SetModeRequest) -> dict:
     _set_session_mode(session_id, req.mode)
     return {"session_id": session_id, "mode": req.mode}
 
+@app.post("/messages/pin")
+def pin_message_endpoint(req: MessageActionRequest) -> dict:
+    set_message_pinned(req.message_id, True)
+    return {"pinned": req.message_id}
+
+
+@app.post("/messages/unpin")
+def unpin_message_endpoint(req: MessageActionRequest) -> dict:
+    set_message_pinned(req.message_id, False)
+    return {"unpinned": req.message_id}
+
+
+@app.post("/messages/star")
+def star_message_endpoint(req: MessageActionRequest) -> dict:
+    set_message_starred(req.message_id, True)
+    return {"starred": req.message_id}
+
+
+@app.post("/messages/unstar")
+def unstar_message_endpoint(req: MessageActionRequest) -> dict:
+    set_message_starred(req.message_id, False)
+    return {"unstarred": req.message_id}
+
+@app.post("/chat/retry")
+def retry_endpoint(req: RetryRequest) -> ChatResponse:
+    from core.memory import delete_messages_after, edit_message
+    edit_message(req.message_id, req.new_message)
+    delete_messages_after(req.session_id, req.message_id)
+    result = route_query(req.session_id, req.new_message)
+    return ChatResponse(
+        answer=result.answer, mode=result.mode, sources=result.sources,
+        filed_elsewhere=result.filed_elsewhere,
+        user_message_id=result.user_message_id,
+        assistant_message_id=result.assistant_message_id,
+    )
+
 @app.get("/corrections/list")
 def list_corrections_endpoint() -> dict:
     return {"corrections": get_all_corrections()}
@@ -271,7 +324,8 @@ def installed_packs() -> dict:
 
 @app.get("/history/{session_id}", response_model=HistoryResponse)
 def get_history_endpoint(session_id: str) -> HistoryResponse:
-    messages = memory.get_recent_messages(session_id, limit=50)
+    from core.memory import get_session_history_with_ids
+    messages = get_session_history_with_ids(session_id, limit=50)
     return HistoryResponse(messages=messages)
 
 @app.get("/sessions", response_model=SessionsListResponse)
@@ -286,6 +340,15 @@ def list_modes_endpoint() -> dict:
     all_modes = sorted(custom_modes | set(pack_modes) | {"general"})
     all_modes.remove("general")
     return {"modes": ["general"] + all_modes}
+@app.get("/sessions/{session_id}/pinned")
+def get_pinned_endpoint(session_id: str) -> dict:
+    return {"pinned": get_pinned_messages(session_id)}
+
+
+@app.get("/starred")
+def get_starred_endpoint() -> dict:
+    return {"starred_by_mode": get_starred_messages_by_mode()}
+
 
 @app.delete("/sessions/{session_id}")
 def delete_session_endpoint(session_id: str) -> dict:
