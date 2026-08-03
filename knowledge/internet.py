@@ -95,15 +95,22 @@ def research_topic(query: str) -> ResearchOutcome | None:
 
     response = chat([{"role": "user", "content": verification_prompt}])
 
+    import re
     confidence = 0.6
     summary = response
-    if "CONFIDENCE:" in response:
-        summary, _, conf_part = response.partition("CONFIDENCE:")
-        summary = summary.strip()
+
+    # Match CONFIDENCE (and common misspellings/variants the model produces)
+    # followed by a number, case-insensitive, regardless of ** markdown or colons.
+    match = re.search(r"CONF\w*\s*:?\s*\**\s*(\d*\.?\d+)", response, re.IGNORECASE)
+    if match:
+        summary = response[:match.start()].strip()
         try:
-            confidence = max(0.0, min(1.0, float(conf_part.strip().split()[0])))
-        except (ValueError, IndexError):
+            confidence = max(0.0, min(1.0, float(match.group(1))))
+        except ValueError:
             pass
+
+    # Strip any leftover markdown bold markers or "SUMMARY:" labels from the front
+    summary = re.sub(r"\*+\s*$", "", summary).strip()
 
     return ResearchOutcome(
         summary=summary,

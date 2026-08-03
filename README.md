@@ -89,6 +89,48 @@ To use from a phone: connect it to the same WiFi as the PC, find the PC's local 
   instruction-following ability, not a prompt-wording problem — a larger
   model would likely handle this better, but that needs more VRAM than
   this hardware has. Documented rather than chased further.
+  - **Deep dive: time-sensitive/current-events questions specifically.** A
+  more rigorous investigation (not just one failed test) into why NOVA
+  couldn't answer "what is the release date of Spider-Man: Brand New Day"
+  even with a correct, verified answer already stored locally:
+  1. Found and fixed a real bug first: a confidence-parsing regex only
+     matched the literal string "CONFIDENCE:", but the LLM sometimes
+     produces variants ("CONFIANCE", "CONFINENCE") — when unmatched, the
+     raw unparsed response (including garbled label text) got stored as
+     the "clean" summary, corrupting several stored knowledge chunks.
+     Fixed with a more forgiving regex; corrupted chunks manually removed.
+  2. Found and fixed a second real bug: `high_confidence` mode included
+     all top-5 retrieved chunks in the prompt regardless of relevance,
+     so a single correct match got diluted by 4 unrelated low-similarity
+     chunks (weather forecasts, an unrelated celebrity, etc). Fixed by
+     filtering to only chunks above the low-confidence threshold.
+  3. Found and fixed a third real bug: conversation history was included
+     in every prompt, meaning an earlier failed/wrong answer in the same
+     session got fed back as context on the next turn, reinforcing the
+     same mistake. Fixed by excluding history for high-confidence answer
+     paths, where the current context is already self-contained.
+  4. After all three fixes, the failure persisted. Tested temperature
+     0.1 (reduced sampling randomness) — no improvement. Tested
+     increasingly explicit, repeated prompt instructions explicitly
+     telling the model the provided information was current and verified
+     — no improvement.
+  5. Swapped the entire model (Qwen2.5-3B → Phi-3.5-mini) as a final
+     test, keeping everything else identical. Result: consistent,
+     repeatable failure across 5/5 trials on both models -- Phi-3.5 even
+     cited its own training cutoff ("as of early 2023") and fabricated an
+     unrelated real movie's release date, rather than using the provided
+     current information.
+
+  Conclusion: this is not a prompt-engineering gap. It's evidence that
+  small instruction-tuned models have a strongly reinforced training
+  behavior around deferring to their own knowledge cutoff for
+  date/current-events questions, which in-context correction can't
+  reliably override at this model scale — consistent across two
+  independent model families. The three real bugs found along the way
+  (confidence parsing, irrelevant context dilution, history poisoning)
+  were fixed and are genuine improvements; the residual failure on this
+  specific question type is a documented, tested, and accepted
+  limitation, not an unexamined one.
 - Personality/tone instructions are followed loosely for the same reason above.
   This is a direct tradeoff of staying fully offline/local on modest hardware
   instead of using a cloud model.

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from config import RAG_TOP_K, RAG_HIGH_CONFIDENCE, RAG_LOW_CONFIDENCE
 from core import memory
 from core.llm import chat
 from knowledge.store import query as knowledge_query
@@ -113,8 +112,15 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
 
     if top_similarity >= RAG_HIGH_CONFIDENCE:
         mode = "high_confidence"
-        context = _format_context(hits)
-        prompt = f"Context:\n{context}\n\nQuestion: {user_input}"
+        relevant_hits = [h for h in hits if h["similarity"] >= RAG_LOW_CONFIDENCE]
+        context = _format_context(relevant_hits)
+        prompt = (
+            f"The context below is verified, stored knowledge -- treat it "
+            f"as fact, not as something uncertain. State the answer "
+            f"directly. Do not say you lack information if the context "
+            f"below answers the question.\n\n"
+            f"Context:\n{context}\n\nQuestion: {user_input}"
+        )
     elif broad_coverage_count >= RAG_BROAD_MIN_CHUNKS:
         mode = "broad_confidence"
         context = _format_context(hits)
@@ -150,19 +156,29 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
             )
             mode = "learned_from_internet"
             prompt = (
-                f"You just researched this online. Here is a verified "
-                f"summary (confidence: {outcome.confidence}):\n\n"
-                f"{outcome.summary}\n\n"
-                f"Answer the user's question using this summary. If "
-                f"confidence is below 0.6, mention you're not fully "
-                f"certain.\n\nQuestion: {user_input}"
+                f"Note: even though you don't normally have real-time or "
+                f"up-to-date information, in this case a live web search "
+                f"was just performed and verified moments ago -- the "
+                f"summary below IS current, real, confirmed information, "
+                f"not something you need to be cautious about.\n\n"
+                f"Verified summary:\n{outcome.summary}\n\n"
+                f"State the answer directly and plainly. Do not say you "
+                f"lack information, cannot verify something, or need to "
+                f"check elsewhere -- you already have a confirmed answer "
+                f"above.\n\nQuestion: {user_input}"
             )
 
-    recent = memory.get_recent_messages(session_id, limit=10)
+    # When we have strong evidence for the answer, don't drag in old
+    # conversation history -- a prior refusal/wrong answer sitting in
+    # history can get repeated/imitated even when the current context
+    # is correct. Only casual/uncertain modes benefit from full history.
+    history_limit = 0 if mode in ("high_confidence", "broad_confidence", "learned_from_internet") else 10
+    recent = memory.get_recent_messages(session_id, limit=history_limit) if history_limit else []
     messages = [{"role": "system", "content": _build_system_prompt()}, *recent,
                     {"role": "user", "content": user_input}]
 
-    answer = chat(messages)
+    answer_temperature = 0.1 if mode in ("high_confidence", "broad_confidence", "learned_from_internet") else None
+    answer = chat(messages, temperature=answer_temperature)
     assistant_message_id = memory.add_message(session_id, "assistant", answer)
 
     if mode == "learned_from_internet":
