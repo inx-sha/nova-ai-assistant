@@ -89,12 +89,13 @@ class RouteResult:
     mode: str
     sources: list[str]
     filed_elsewhere: bool = False
-
+    user_message_id: int | None = None
+    assistant_message_id: int | None = None
 
 def route_query(session_id: str, user_input: str) -> RouteResult:
     ensure_session(session_id)
     session_mode = get_session_mode(session_id)
-    memory.add_message(session_id, "user", user_input)
+    user_message_id = memory.add_message(session_id, "user", user_input)
     outcome = None
 
     if _is_casual(user_input):
@@ -103,10 +104,7 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
                     {"role": "user", "content": user_input}]
         answer = chat(messages)
         memory.add_message(session_id, "assistant", answer)
-        return RouteResult(
-        answer=answer, mode=mode, sources=sources,
-        filed_elsewhere=(mode == "learned_from_internet" and category_filter is not None),
-    )
+        return RouteResult(answer=answer, mode="casual", sources=[])
 
     category_filter = session_mode if session_mode != "general" else None
     hits = knowledge_query(user_input, top_k=RAG_TOP_K, category_filter=category_filter)
@@ -165,7 +163,7 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
                     {"role": "user", "content": user_input}]
 
     answer = chat(messages)
-    memory.add_message(session_id, "assistant", answer)
+    assistant_message_id = memory.add_message(session_id, "assistant", answer)
 
     if mode == "learned_from_internet":
         sources = outcome.sources
@@ -177,7 +175,12 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
             for h in hits
             if h["similarity"] >= RAG_LOW_CONFIDENCE
         })
-    return RouteResult(answer=answer, mode=mode, sources=sources)
+    return RouteResult(
+        answer=answer, mode=mode, sources=sources,
+        filed_elsewhere=(mode == "learned_from_internet" and category_filter is not None),
+        user_message_id=user_message_id,
+        assistant_message_id=assistant_message_id,
+    )
 
 
 def _format_context(hits: list[dict]) -> str:

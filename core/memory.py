@@ -94,12 +94,13 @@ def init_db() -> None:
 
 # --- Conversation memory ---
 
-def add_message(session_id: str, role: str, content: str) -> None:
+def add_message(session_id: str, role: str, content: str) -> int:
     with get_conn() as conn:
-        conn.execute(
+        cursor = conn.execute(
             "INSERT INTO conversations (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
             (session_id, role, content, _now()),
         )
+        return cursor.lastrowid
 
 
 def get_recent_messages(session_id: str, limit: int = 20) -> list[dict]:
@@ -305,6 +306,12 @@ def set_session_archived(session_id: str, archived: bool) -> None:
             (int(archived), _now(), session_id),
         )
 
+def set_session_mode(session_id: str, mode: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE sessions SET mode = ?, updated_at = ? WHERE session_id = ?",
+            (mode, _now(), session_id),
+        )
 
 def get_all_sessions(include_archived: bool = False) -> list[dict]:
     """
@@ -342,3 +349,13 @@ def get_all_sessions(include_archived: bool = False) -> list[dict]:
             "archived": bool(meta["archived"]),
         })
     return sessions
+
+def delete_messages_by_ids(message_ids: list[int]) -> int:
+    if not message_ids:
+        return 0
+    placeholders = ",".join("?" for _ in message_ids)
+    with get_conn() as conn:
+        cursor = conn.execute(
+            f"DELETE FROM conversations WHERE id IN ({placeholders})", message_ids
+        )
+        return cursor.rowcount

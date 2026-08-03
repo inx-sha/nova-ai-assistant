@@ -203,7 +203,8 @@
   <header>
     <button id="sidebarToggle">☰</button>
     NOVA
-  </header>
+    <select id="modeSelect" style="margin-left:auto;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px;"></select>
+</header>
 
   <div id="chat" style="display:none;"></div>
   <div id="emptyState">
@@ -236,13 +237,14 @@ const sendBtn = document.getElementById("sendBtn");
 const sessionList = document.getElementById("sessionList");
 const sidebar = document.getElementById("sidebar");
 const newChatBtn = document.getElementById("newChatBtn");
+const modeSelect = document.getElementById("modeSelect");
 
 function showChat(hasMessages) {
   chat.style.display = hasMessages ? "flex" : "none";
   emptyState.style.display = hasMessages ? "none" : "flex";
 }
 
-function addMessage(text, role, meta, userQuestion) {
+function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId) {
   const div = document.createElement("div");
   div.className = "msg " + role;
   div.textContent = text;
@@ -276,6 +278,8 @@ function addMessage(text, role, meta, userQuestion) {
             target_session_id: GENERAL_SESSION_ID,
             user_message: userQuestion,
             assistant_message: text,
+            source_user_message_id: userMsgId,
+            source_assistant_message_id: assistantMsgId,
           }),
         });
         switchSession(GENERAL_SESSION_ID);
@@ -312,7 +316,7 @@ async function sendMessage(text) {
     });
     const data = await res.json();
     thinkingDiv.remove();
-    addMessage(data.answer, "assistant", { mode: data.mode, sources: data.sources, filed_elsewhere: data.filed_elsewhere }, text);
+    addMessage(data.answer, "assistant", { mode: data.mode, sources: data.sources, filed_elsewhere: data.filed_elsewhere }, text, data.user_message_id, data.assistant_message_id);
     loadSessions();
   } catch (err) {
     thinkingDiv.remove();
@@ -370,11 +374,42 @@ async function loadSessions() {
   }
 }
 
+async function loadModes() {
+  const res = await fetch("/modes");
+  const data = await res.json();
+  modeSelect.innerHTML = "";
+  for (const m of data.modes) {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m === "general" ? "General" : m.replace(/_/g, " ");
+    modeSelect.appendChild(opt);
+  }
+  syncModeSelect();
+}
+
+async function syncModeSelect() {
+  const res = await fetch("/sessions");
+  const data = await res.json();
+  const current = data.sessions.find(s => s.session_id === sessionId);
+  console.log("syncModeSelect: sessionId=", sessionId, "found session=", current);
+  modeSelect.value = current ? current.mode : "general";
+}
+
+modeSelect.addEventListener("change", async () => {
+  await fetch("/sessions/" + sessionId + "/mode", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: modeSelect.value }),
+  });
+  loadSessions();
+});
+
 function switchSession(id) {
   sessionId = id;
   localStorage.setItem("nova_session_id", sessionId);
   loadHistory(sessionId);
   loadSessions();
+  syncModeSelect();
 }
 
 function startNewChat() {
@@ -382,6 +417,7 @@ function startNewChat() {
   localStorage.setItem("nova_session_id", sessionId);
   chat.innerHTML = "";
   showChat(false);
+  syncModeSelect();
   loadSessions();
 }
 
@@ -393,8 +429,12 @@ document.querySelectorAll(".example-chip").forEach(chip => {
   chip.addEventListener("click", () => sendMessage(chip.dataset.q));
 });
 
-loadHistory(sessionId);
-loadSessions();
+async function init() {
+  await loadModes();
+  await loadHistory(sessionId);
+  await loadSessions();
+}
+init();
 </script>
 
 </body>

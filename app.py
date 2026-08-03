@@ -20,6 +20,8 @@ from knowledge.scheduler import start_scheduler, stop_scheduler, refresh_stale_p
 from knowledge.internet import verify_claim
 from core.memory import add_correction, get_all_corrections
 from core.memory import get_all_sessions, delete_session
+from knowledge.packs import list_available_packs
+from core.memory import set_session_mode as _set_session_mode
 
 app = FastAPI(title="NOVA", version="0.1.0")
 app.mount("/static", StaticFiles(directory="ui"), name="static")
@@ -50,12 +52,14 @@ class ChatRequest(BaseModel):
     message: str
 
 
+
 class ChatResponse(BaseModel):
     answer: str
     mode: str
     sources: list[str]
     filed_elsewhere: bool = False
-
+    user_message_id: int | None = None
+    assistant_message_id: int | None = None
 
 class IngestRequest(BaseModel):
     text: str
@@ -101,6 +105,8 @@ class SessionInfo(BaseModel):
     session_id: str
     title: str
     last_activity: str
+    mode: str = "general"
+    archived: bool = False
 
 
 class SessionsListResponse(BaseModel):
@@ -110,15 +116,27 @@ class MoveMessageRequest(BaseModel):
     target_session_id: str
     user_message: str
     assistant_message: str
+    source_user_message_id: int | None = None
+    source_assistant_message_id: int | None = None
 
+class SetModeRequest(BaseModel):
+    mode: str
 
 @app.post("/sessions/move_message")
 def move_message_endpoint(req: MoveMessageRequest) -> dict:
-    from core.memory import ensure_session
+    from core.memory import ensure_session, delete_messages_by_ids, set_session_mode
     ensure_session(req.target_session_id, mode="general")
+    set_session_mode(req.target_session_id, "general")
     memory.add_message(req.target_session_id, "user", req.user_message)
     memory.add_message(req.target_session_id, "assistant", req.assistant_message)
-    return {"moved_to": req.target_session_id}
+
+    ids_to_remove = [
+        i for i in (req.source_user_message_id, req.source_assistant_message_id)
+        if i is not None
+    ]
+    delete_messages_by_ids(ids_to_remove)
+
+    return {"moved_to": req.target_session_id, "removed_from_source": len(ids_to_remove)}
 
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(req: ChatRequest) -> ChatResponse:
@@ -128,6 +146,8 @@ def chat_endpoint(req: ChatRequest) -> ChatResponse:
     return ChatResponse(
         answer=result.answer, mode=result.mode, sources=result.sources,
         filed_elsewhere=result.filed_elsewhere,
+        user_message_id=result.user_message_id,
+        assistant_message_id=result.assistant_message_id,
     )
 
 
@@ -220,6 +240,13 @@ def install_pack_endpoint(req: InstallPackRequest) -> InstallPackResponse:
         raise HTTPException(status_code=400, detail=str(e))
     return InstallPackResponse(**result)
 
+@app.post("/sessions/{session_id}/mode")
+def set_session_mode_endpoint(session_id: str, req: SetModeRequest) -> dict:
+    from core.memory import ensure_session
+    ensure_session(session_id)
+    _set_session_mode(session_id, req.mode)
+    return {"session_id": session_id, "mode": req.mode}
+
 @app.get("/corrections/list")
 def list_corrections_endpoint() -> dict:
     return {"corrections": get_all_corrections()}
@@ -251,6 +278,9 @@ def get_history_endpoint(session_id: str) -> HistoryResponse:
 def list_sessions_endpoint() -> SessionsListResponse:
     return SessionsListResponse(sessions=get_all_sessions())
 
+@app.get("/modes")
+def list_modes_endpoint() -> dict:
+    return {"modes": ["general"] + list_available_packs()}
 
 @app.delete("/sessions/{session_id}")
 def delete_session_endpoint(session_id: str) -> dict:
