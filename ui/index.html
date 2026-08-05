@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NOVA</title>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="icon" href="/static/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<meta name="theme-color" content="#2f6feb">
 <style>
   * { box-sizing: border-box; }
   body {
@@ -399,22 +403,25 @@ async function loadDashboard() {
 
   const totalLabel = document.createElement("div");
   totalLabel.style.cssText = "font-size:0.8em;color:#888;margin-bottom:16px;";
-  totalLabel.textContent = "knowledge chunks stored";
+  totalLabel.textContent = "things NOVA has learned";
   dashboardPanel.appendChild(totalLabel);
 
   const confDiv = document.createElement("div");
   confDiv.style.cssText = "font-size:0.85em;color:#ccc;margin-bottom:16px;";
-  confDiv.textContent = `Average confidence: ${(stats.average_confidence * 100).toFixed(0)}%`;
+  const confPct = stats.average_confidence * 100;
+  const confLabel = confPct >= 85 ? "Very confident" : confPct >= 65 ? "Fairly confident" : "Still learning";
+  confDiv.textContent = `How sure NOVA is about what it knows: ${confLabel}`;
   dashboardPanel.appendChild(confDiv);
 
+  const tierLabels = { cache: "Recently learned", pinned: "Saved by you", pack: "Core knowledge" };
   const tierHeading = document.createElement("div");
   tierHeading.style.cssText = "font-weight:600;color:#6fb8dc;margin-top:10px;";
-  tierHeading.textContent = "By tier";
+  tierHeading.textContent = "What kind of knowledge";
   dashboardPanel.appendChild(tierHeading);
   for (const [tier, count] of Object.entries(stats.by_tier)) {
     const row = document.createElement("div");
     row.style.cssText = "font-size:0.82em;color:#ccc;display:flex;justify-content:space-between;padding:3px 0;";
-    row.innerHTML = `<span>${tier}</span><span>${count}</span>`;
+    row.innerHTML = `<span>${tierLabels[tier] || tier}</span><span>${count}</span>`;
     dashboardPanel.appendChild(row);
   }
 
@@ -432,7 +439,7 @@ async function loadDashboard() {
 
   const growthHeading = document.createElement("div");
   growthHeading.style.cssText = "font-weight:600;color:#6fb8dc;margin-top:12px;";
-  growthHeading.textContent = "Growth (last 14 days)";
+  growthHeading.textContent = "Learning activity this week";
   dashboardPanel.appendChild(growthHeading);
 
   const chartDiv = document.createElement("div");
@@ -443,7 +450,8 @@ async function loadDashboard() {
     const bar = document.createElement("div");
     const heightPct = (count / maxCount) * 100;
     bar.style.cssText = `flex:1;background:#2f6feb;border-radius:2px 2px 0 0;height:${heightPct}%;min-height:2px;`;
-    bar.title = `${day}: ${count} chunks`;
+    const friendlyDate = new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    bar.title = `${friendlyDate}: learned ${count} new thing${count === 1 ? '' : 's'}`;
     chartDiv.appendChild(bar);
   }
   dashboardPanel.appendChild(chartDiv);
@@ -865,6 +873,13 @@ async function init() {
   await loadPinned();
 }
 init();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/static/service-worker.js")
+    .then(() => console.log("Service worker registered"))
+    .catch((err) => console.error("Service worker registration failed:", err));
+}
+
 </script>
 
 </body>
