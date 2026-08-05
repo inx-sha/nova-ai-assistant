@@ -252,7 +252,7 @@ function showChat(hasMessages) {
   chat.style.display = hasMessages ? "flex" : "none";
   emptyState.style.display = hasMessages ? "none" : "flex";
 }
-function attachActions(div, role, text, userMsgId, assistantMsgId) {
+function attachActions(div, role, text, userMsgId, assistantMsgId, initialPinned, initialStarred) {
   const msgId = role === "user" ? userMsgId : assistantMsgId;
   if (!msgId) return;
 
@@ -279,9 +279,13 @@ function attachActions(div, role, text, userMsgId, assistantMsgId) {
       body: JSON.stringify({ message_id: msgId }),
     });
     pinBtn.dataset.active = isPinned ? "false" : "true";
-    pinBtn.style.color = isPinned ? "#888" : "#2f6feb";
+    pinBtn.style.background = isPinned ? "transparent" : "#2f6feb33";
+    pinBtn.style.borderColor = isPinned ? "#2a2d34" : "#2f6feb";
     loadPinned();
   });
+  pinBtn.dataset.active = initialPinned ? "true" : "false";
+  pinBtn.style.background = initialPinned ? "#2f6feb33" : "transparent";
+  pinBtn.style.borderColor = initialPinned ? "#2f6feb" : "#2a2d34";
   actions.appendChild(pinBtn);
 
   const starBtn = mkBtn("⭐", "Star/unstar", async (e) => {
@@ -291,11 +295,15 @@ function attachActions(div, role, text, userMsgId, assistantMsgId) {
       body: JSON.stringify({ message_id: msgId }),
     });
     starBtn.dataset.active = isStarred ? "false" : "true";
-    starBtn.style.color = isStarred ? "#888" : "#e0c341";
+    starBtn.style.background = isStarred ? "transparent" : "#e0c34133";
+    starBtn.style.borderColor = isStarred ? "#2a2d34" : "#e0c341";
     if (starredPanel.style.display === "block") {
       loadStarred();
     }
   });
+  starBtn.dataset.active = initialStarred ? "true" : "false";
+  starBtn.style.background = initialStarred ? "#e0c34133" : "transparent";
+  starBtn.style.borderColor = initialStarred ? "#e0c341" : "#2a2d34";
   actions.appendChild(starBtn);
 
   if (role === "user") {
@@ -313,7 +321,7 @@ function attachActions(div, role, text, userMsgId, assistantMsgId) {
   div.appendChild(actions);
 }
 
-function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId) {
+function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId, initialPinned, initialStarred) {
   const div = document.createElement("div");
   div.className = "msg " + role;
 
@@ -366,7 +374,7 @@ function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId) {
   }
 
   if (msgId) {
-    attachActions(div, role, text, userMsgId, assistantMsgId);
+    attachActions(div, role, text, userMsgId, assistantMsgId, initialPinned, initialStarred);
   }
 
   chat.appendChild(div);
@@ -514,7 +522,7 @@ async function loadHistory(id) {
     for (const msg of data.messages) {
       const id = msg.role === "user" ? msg.id : undefined;
       const assistantId = msg.role === "assistant" ? msg.id : undefined;
-      addMessage(msg.content, msg.role, null, null, id, assistantId);
+      addMessage(msg.content, msg.role, null, null, id, assistantId, !!msg.pinned, !!msg.starred);
     }
   } catch (err) {
     showChat(false);
