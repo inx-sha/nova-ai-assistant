@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from core import memory
-from core.llm import chat
+from core.llm import chat, chat_stream
 from knowledge.store import query as knowledge_query
 from knowledge.internet import research_topic
 from knowledge.ingest import ingest_text
@@ -46,11 +46,12 @@ def _build_system_prompt() -> str:
         corrections_text = "\n".join(
             f"- On the topic of '{c['topic']}': {c['correct_info']} "
             f"(previously incorrect info to avoid: {c['wrong_info']})"
-            for c in corrections[:10]  # cap so the prompt doesn't grow unbounded
+            for c in corrections[:10]
         )
         parts.append(f"\nVerified corrections from past conversations -- apply these when relevant:\n{corrections_text}")
 
     return "\n".join(parts)
+
 
 CASUAL_PATTERNS = {
     "hi", "hello", "hey", "yo", "sup", "thanks", "thank you", "ok", "okay",
@@ -62,8 +63,6 @@ CASUAL_PATTERNS = {
 
 def _is_casual(text: str) -> bool:
     cleaned = text.strip().lower().rstrip("!?.")
-    # normalize punctuation like commas so "hi, how are you" behaves
-    # the same as "hi how are you"
     normalized = cleaned.replace(",", " ").replace("-", " ")
     words = normalized.split()
 
@@ -82,6 +81,7 @@ def _is_casual(text: str) -> bool:
 
     return False
 
+
 @dataclass
 class RouteResult:
     answer: str
@@ -91,7 +91,21 @@ class RouteResult:
     user_message_id: int | None = None
     assistant_message_id: int | None = None
 
-def route_query(session_id: str, user_input: str) -> RouteResult:
+
+@dataclass
+class _PreparedResponse:
+    """Everything needed to generate the final answer, computed once and
+    shared by both the normal (non-streaming) and streaming code paths --
+    avoids duplicating all the retrieval/research/routing logic twice."""
+    messages: list[dict]
+    mode: str
+    sources: list[str]
+    filed_elsewhere: bool
+    answer_temperature: float | None
+    user_message_id: int
+
+
+def _prepare_response(session_id: str, user_input: str) -> _PreparedResponse:
     ensure_session(session_id)
     session_mode = get_session_mode(session_id)
     user_message_id = memory.add_message(session_id, "user", user_input)
@@ -101,9 +115,10 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
         recent = memory.get_recent_messages(session_id, limit=10)
         messages = [{"role": "system", "content": _build_system_prompt()}, *recent,
                     {"role": "user", "content": user_input}]
-        answer = chat(messages)
-        memory.add_message(session_id, "assistant", answer)
-        return RouteResult(answer=answer, mode="casual", sources=[])
+        return _PreparedResponse(
+            messages=messages, mode="casual", sources=[], filed_elsewhere=False,
+            answer_temperature=None, user_message_id=user_message_id,
+        )
 
     category_filter = session_mode if session_mode != "general" else None
     hits = knowledge_query(user_input, top_k=RAG_TOP_K, category_filter=category_filter)
@@ -168,18 +183,12 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
                 f"above.\n\nQuestion: {user_input}"
             )
 
-    # When we have strong evidence for the answer, don't drag in old
-    # conversation history -- a prior refusal/wrong answer sitting in
-    # history can get repeated/imitated even when the current context
-    # is correct. Only casual/uncertain modes benefit from full history.
     history_limit = 0 if mode in ("high_confidence", "broad_confidence", "learned_from_internet") else 10
     recent = memory.get_recent_messages(session_id, limit=history_limit) if history_limit else []
     messages = [{"role": "system", "content": _build_system_prompt()}, *recent,
-                    {"role": "user", "content": user_input}]
+                {"role": "user", "content": user_input}]
 
     answer_temperature = 0.1 if mode in ("high_confidence", "broad_confidence", "learned_from_internet") else None
-    answer = chat(messages, temperature=answer_temperature)
-    assistant_message_id = memory.add_message(session_id, "assistant", answer)
 
     if mode == "learned_from_internet":
         sources = outcome.sources
@@ -191,12 +200,54 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
             for h in hits
             if h["similarity"] >= RAG_LOW_CONFIDENCE
         })
+
+    filed_elsewhere = mode == "learned_from_internet" and category_filter is not None
+
+    return _PreparedResponse(
+        messages=messages, mode=mode, sources=sources, filed_elsewhere=filed_elsewhere,
+        answer_temperature=answer_temperature, user_message_id=user_message_id,
+    )
+
+
+def route_query(session_id: str, user_input: str) -> RouteResult:
+    prepared = _prepare_response(session_id, user_input)
+    answer = chat(prepared.messages, temperature=prepared.answer_temperature)
+    assistant_message_id = memory.add_message(session_id, "assistant", answer)
+
     return RouteResult(
-        answer=answer, mode=mode, sources=sources,
-        filed_elsewhere=(mode == "learned_from_internet" and category_filter is not None),
-        user_message_id=user_message_id,
+        answer=answer, mode=prepared.mode, sources=prepared.sources,
+        filed_elsewhere=prepared.filed_elsewhere,
+        user_message_id=prepared.user_message_id,
         assistant_message_id=assistant_message_id,
     )
+
+
+def route_query_stream(session_id: str, user_input: str):
+    """
+    Generator version: yields small text chunks as they're generated,
+    for progressive display in the UI. The full answer is still saved
+    to memory once streaming completes, same as the non-streaming path.
+    Yields dicts: {"type": "chunk", "text": ...} while streaming, then
+    one final {"type": "done", "mode":..., "sources":..., ...} with
+    everything the frontend needs once the answer is complete.
+    """
+    prepared = _prepare_response(session_id, user_input)
+    full_answer = ""
+
+    for chunk in chat_stream(prepared.messages, temperature=prepared.answer_temperature):
+        full_answer += chunk
+        yield {"type": "chunk", "text": chunk}
+
+    assistant_message_id = memory.add_message(session_id, "assistant", full_answer)
+
+    yield {
+        "type": "done",
+        "mode": prepared.mode,
+        "sources": prepared.sources,
+        "filed_elsewhere": prepared.filed_elsewhere,
+        "user_message_id": prepared.user_message_id,
+        "assistant_message_id": assistant_message_id,
+    }
 
 
 def _format_context(hits: list[dict]) -> str:

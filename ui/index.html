@@ -464,26 +464,87 @@ async function sendMessage(text) {
   input.value = "";
   sendBtn.disabled = true;
 
-  const thinkingDiv = document.createElement("div");
-  thinkingDiv.className = "msg assistant";
-  thinkingDiv.textContent = "thinking...";
-  chat.appendChild(thinkingDiv);
+  const assistantDiv = document.createElement("div");
+  assistantDiv.className = "msg assistant";
+  const assistantTextDiv = document.createElement("div");
+  assistantTextDiv.textContent = "";
+  assistantDiv.appendChild(assistantTextDiv);
+  chat.appendChild(assistantDiv);
   chat.scrollTop = chat.scrollHeight;
+  showChat(true);
+
+  let fullText = "";
 
   try {
-    const res = await fetch("/chat", {
+    const res = await fetch("/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: sessionId, message: text }),
     });
-    const data = await res.json();
-    thinkingDiv.remove();
-    attachActions(userDiv, "user", text, data.user_message_id, data.user_message_id);
-    addMessage(data.answer, "assistant", { mode: data.mode, sources: data.sources, filed_elsewhere: data.filed_elsewhere }, text, data.user_message_id, data.assistant_message_id);
-    loadSessions();
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const event = JSON.parse(line.slice(6));
+
+        if (event.type === "chunk") {
+          fullText += event.text;
+          assistantTextDiv.textContent = fullText;
+          chat.scrollTop = chat.scrollHeight;
+        } else if (event.type === "done") {
+          attachActions(userDiv, "user", text, event.user_message_id, event.user_message_id);
+
+          const metaDiv = document.createElement("div");
+          metaDiv.className = "meta";
+          const badge = document.createElement("span");
+          badge.className = "mode-badge mode-" + event.mode;
+          badge.textContent = event.mode.replace(/_/g, " ");
+          metaDiv.appendChild(badge);
+          if (event.sources && event.sources.length) {
+            const src = document.createElement("span");
+            src.textContent = event.sources.join(", ");
+            metaDiv.appendChild(src);
+          }
+          assistantDiv.appendChild(metaDiv);
+
+          if (event.filed_elsewhere) {
+            const moveBtn = document.createElement("button");
+            moveBtn.textContent = "Move to General chat";
+            moveBtn.style.cssText = "margin-top:8px;font-size:0.8em;padding:4px 10px;border-radius:6px;border:1px solid #2a2d34;background:#21242c;color:#ccc;cursor:pointer;display:block;";
+            moveBtn.addEventListener("click", async () => {
+              await fetch("/sessions/move_message", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  target_session_id: GENERAL_SESSION_ID,
+                  user_message: text, assistant_message: fullText,
+                  source_user_message_id: event.user_message_id,
+                  source_assistant_message_id: event.assistant_message_id,
+                }),
+              });
+              switchSession(GENERAL_SESSION_ID);
+              loadSessions();
+            });
+            assistantDiv.appendChild(moveBtn);
+          }
+
+          attachActions(assistantDiv, "assistant", fullText, event.user_message_id, event.assistant_message_id);
+          loadSessions();
+        }
+      }
+    }
   } catch (err) {
-    thinkingDiv.remove();
-    addMessage("Error: could not reach NOVA. " + err, "assistant");
+    assistantTextDiv.textContent = "Error: could not reach NOVA. " + err;
   } finally {
     sendBtn.disabled = false;
   }

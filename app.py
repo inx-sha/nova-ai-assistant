@@ -10,6 +10,8 @@ from core.router import route_query
 from knowledge.ingest import ingest_text
 from knowledge.store import count as knowledge_count
 from knowledge.store import set_tier, find_chunks_by_source
+from core.router import route_query_stream
+import json as json_module
 import shutil
 import tempfile
 from fastapi import UploadFile, File, Form
@@ -176,6 +178,18 @@ def chat_endpoint(req: ChatRequest) -> ChatResponse:
         assistant_message_id=result.assistant_message_id,
     )
 
+@app.post("/chat/stream")
+async def chat_stream_endpoint(req: ChatRequest):
+    from fastapi.responses import StreamingResponse
+
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="message cannot be empty")
+
+    def event_generator():
+        for event in route_query_stream(req.session_id, req.message):
+            yield f"data: {json_module.dumps(event)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/knowledge/ingest", response_model=IngestResponse)
 def ingest_endpoint(req: IngestRequest) -> IngestResponse:
