@@ -207,7 +207,9 @@
     <select id="modeSelect" style="margin-left:auto;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px;"></select>
 <button id="newModeBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">+</button>
 <button id="starredBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">⭐</button>
+<button id="dashboardBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">📊</button>
 </header>
+  <div id="dashboardPanel" style="display:none;position:absolute;top:60px;right:16px;width:360px;max-height:500px;overflow-y:auto;background:#1a1c22;border:1px solid #2a2d34;border-radius:8px;padding:16px;z-index:20;"></div>
   <div id="starredPanel" style="display:none;position:absolute;top:60px;right:16px;width:320px;max-height:400px;overflow-y:auto;background:#1a1c22;border:1px solid #2a2d34;border-radius:8px;padding:12px;z-index:20;"></div>
   <div id="pinnedBar" style="display:none;padding:10px 16px;background:#1a1c22;border-bottom:1px solid #2a2d34;font-size:0.85em;"></div>
   <div id="chat" style="display:none;"></div>
@@ -382,6 +384,80 @@ function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId, i
   showChat(true);
 }
 
+const dashboardPanel = document.getElementById("dashboardPanel");
+
+async function loadDashboard() {
+  const res = await fetch("/knowledge/dashboard");
+  const stats = await res.json();
+
+  dashboardPanel.innerHTML = "<strong>📊 Knowledge Dashboard</strong>";
+
+  const totalDiv = document.createElement("div");
+  totalDiv.style.cssText = "font-size:1.8em;font-weight:700;margin:12px 0 4px;color:#6fdc8c;";
+  totalDiv.textContent = stats.total_chunks;
+  dashboardPanel.appendChild(totalDiv);
+
+  const totalLabel = document.createElement("div");
+  totalLabel.style.cssText = "font-size:0.8em;color:#888;margin-bottom:16px;";
+  totalLabel.textContent = "knowledge chunks stored";
+  dashboardPanel.appendChild(totalLabel);
+
+  const confDiv = document.createElement("div");
+  confDiv.style.cssText = "font-size:0.85em;color:#ccc;margin-bottom:16px;";
+  confDiv.textContent = `Average confidence: ${(stats.average_confidence * 100).toFixed(0)}%`;
+  dashboardPanel.appendChild(confDiv);
+
+  const tierHeading = document.createElement("div");
+  tierHeading.style.cssText = "font-weight:600;color:#6fb8dc;margin-top:10px;";
+  tierHeading.textContent = "By tier";
+  dashboardPanel.appendChild(tierHeading);
+  for (const [tier, count] of Object.entries(stats.by_tier)) {
+    const row = document.createElement("div");
+    row.style.cssText = "font-size:0.82em;color:#ccc;display:flex;justify-content:space-between;padding:3px 0;";
+    row.innerHTML = `<span>${tier}</span><span>${count}</span>`;
+    dashboardPanel.appendChild(row);
+  }
+
+  const catHeading = document.createElement("div");
+  catHeading.style.cssText = "font-weight:600;color:#6fb8dc;margin-top:12px;";
+  catHeading.textContent = "By category";
+  dashboardPanel.appendChild(catHeading);
+  const sortedCats = Object.entries(stats.by_category).sort((a, b) => b[1] - a[1]);
+  for (const [cat, count] of sortedCats) {
+    const row = document.createElement("div");
+    row.style.cssText = "font-size:0.82em;color:#ccc;display:flex;justify-content:space-between;padding:3px 0;";
+    row.innerHTML = `<span>${cat.replace(/_/g, " ")}</span><span>${count}</span>`;
+    dashboardPanel.appendChild(row);
+  }
+
+  const growthHeading = document.createElement("div");
+  growthHeading.style.cssText = "font-weight:600;color:#6fb8dc;margin-top:12px;";
+  growthHeading.textContent = "Growth (last 14 days)";
+  dashboardPanel.appendChild(growthHeading);
+
+  const chartDiv = document.createElement("div");
+  chartDiv.style.cssText = "display:flex;align-items:flex-end;gap:4px;height:60px;margin-top:8px;";
+  const growthEntries = Object.entries(stats.growth_last_14_days);
+  const maxCount = Math.max(...growthEntries.map(([, c]) => c), 1);
+  for (const [day, count] of growthEntries) {
+    const bar = document.createElement("div");
+    const heightPct = (count / maxCount) * 100;
+    bar.style.cssText = `flex:1;background:#2f6feb;border-radius:2px 2px 0 0;height:${heightPct}%;min-height:2px;`;
+    bar.title = `${day}: ${count} chunks`;
+    chartDiv.appendChild(bar);
+  }
+  dashboardPanel.appendChild(chartDiv);
+}
+
+document.getElementById("dashboardBtn").addEventListener("click", async () => {
+  const isVisible = dashboardPanel.style.display === "block";
+  if (isVisible) {
+    dashboardPanel.style.display = "none";
+  } else {
+    await loadDashboard();
+    dashboardPanel.style.display = "block";
+  }
+});
 
 let starredData = null;
 
@@ -467,7 +543,8 @@ async function sendMessage(text) {
   const assistantDiv = document.createElement("div");
   assistantDiv.className = "msg assistant";
   const assistantTextDiv = document.createElement("div");
-  assistantTextDiv.textContent = "";
+  assistantTextDiv.textContent = "thinking...";
+  assistantTextDiv.style.opacity = "0.6";
   assistantDiv.appendChild(assistantTextDiv);
   chat.appendChild(assistantDiv);
   chat.scrollTop = chat.scrollHeight;
@@ -499,6 +576,9 @@ async function sendMessage(text) {
         const event = JSON.parse(line.slice(6));
 
         if (event.type === "chunk") {
+          if (fullText === "") {
+            assistantTextDiv.style.opacity = "1";
+          }
           fullText += event.text;
           assistantTextDiv.textContent = fullText;
           chat.scrollTop = chat.scrollHeight;

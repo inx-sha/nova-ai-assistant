@@ -182,3 +182,51 @@ def backfill_missing_tiers(default_tier: str = "cache") -> int:
             fixed += 1
 
     return fixed
+
+from collections import Counter
+from datetime import datetime, timedelta
+
+
+def get_knowledge_stats() -> dict:
+    """
+    Aggregates stats across all stored knowledge -- tier breakdown,
+    category breakdown, and growth over the last 14 days -- for the
+    dashboard view.
+    """
+    with _write_lock:
+        all_chunks = get_collection().get()
+
+    metas = all_chunks["metadatas"]
+    total = len(metas)
+
+    tier_counts = Counter(m.get("tier", "cache") for m in metas)
+
+    category_counts = Counter()
+    for m in metas:
+        for cat in m.get("categories", "general").split(","):
+            if cat:
+                category_counts[cat] += 1
+
+    # Growth over the last 14 days, bucketed by date
+    cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+    daily_counts = Counter()
+    for m in metas:
+        collected_str = m.get("date_collected")
+        if not collected_str:
+            continue
+        collected = datetime.fromisoformat(collected_str)
+        if collected >= cutoff:
+            day_key = collected.strftime("%Y-%m-%d")
+            daily_counts[day_key] += 1
+
+    avg_confidence = (
+        sum(m.get("confidence", 1.0) for m in metas) / total if total else 0
+    )
+
+    return {
+        "total_chunks": total,
+        "by_tier": dict(tier_counts),
+        "by_category": dict(category_counts),
+        "growth_last_14_days": dict(sorted(daily_counts.items())),
+        "average_confidence": round(avg_confidence, 3),
+    }

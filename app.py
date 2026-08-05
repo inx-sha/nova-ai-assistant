@@ -331,6 +331,10 @@ def list_corrections_endpoint() -> dict:
 def knowledge_stats() -> dict:
     return {"total_chunks": knowledge_count()}
 
+@app.get("/knowledge/dashboard")
+def knowledge_dashboard_endpoint() -> dict:
+    from knowledge.store import get_knowledge_stats
+    return get_knowledge_stats()
 
 @app.get("/health")
 def health() -> dict:
