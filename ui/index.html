@@ -230,6 +230,7 @@
   <div id="inputBar">
     <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.md" style="display:none;">
     <button id="attachBtn" style="padding:12px;border-radius:8px;border:1px solid #2a2d34;background:#1a1c22;color:white;cursor:pointer;">📎</button>
+    <button id="micBtn" title="Voice input (uses cloud speech recognition)" style="padding:12px;border-radius:8px;border:1px solid #2a2d34;background:#1a1c22;color:white;cursor:pointer;">🎤</button>
     <input id="messageInput" type="text" placeholder="Ask NOVA..." autocomplete="off">
     <button id="sendBtn">Send</button>
 </div>
@@ -272,6 +273,52 @@ function speak(text) {
   utterance.rate = 1.0;
   utterance.pitch = 1.0;
   speechSynthesis.speak(utterance);
+}
+
+const micBtn = document.getElementById("micBtn");
+let recognition = null;
+let isListening = false;
+
+if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognitionAPI();
+  recognition.continuous = false;   // stop automatically after one utterance
+  recognition.interimResults = false; // wait for the final transcript, not partial guesses
+  recognition.lang = "en-US";
+
+  recognition.addEventListener("result", (event) => {
+    const transcript = event.results[0][0].transcript;
+    input.value = transcript;
+    input.focus();
+  });
+
+  recognition.addEventListener("end", () => {
+    isListening = false;
+    micBtn.style.background = "#1a1c22";
+    micBtn.textContent = "🎤";
+  });
+
+  recognition.addEventListener("error", (event) => {
+    isListening = false;
+    micBtn.style.background = "#1a1c22";
+    micBtn.textContent = "🎤";
+    console.error("Speech recognition error:", event.error);
+  });
+
+  micBtn.addEventListener("click", () => {
+    if (isListening) {
+      recognition.stop();
+      return;
+    }
+    isListening = true;
+    micBtn.style.background = "#4d1f1f";
+    micBtn.textContent = "🔴";
+    recognition.start();
+  });
+} else {
+  micBtn.disabled = true;
+  micBtn.title = "Speech recognition not supported in this browser";
+  micBtn.style.opacity = "0.4";
 }
 
 function showChat(hasMessages) {
