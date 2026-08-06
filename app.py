@@ -323,6 +323,17 @@ def retry_endpoint(req: RetryRequest) -> ChatResponse:
         assistant_message_id=result.assistant_message_id,
     )
 
+@app.post("/backup/create")
+def create_backup_endpoint() -> dict:
+    from knowledge.backup import create_backup
+    return create_backup()
+
+
+@app.get("/backup/list")
+def list_backups_endpoint() -> dict:
+    from knowledge.backup import list_backups
+    return {"backups": list_backups()}
+
 @app.get("/corrections/list")
 def list_corrections_endpoint() -> dict:
     return {"corrections": get_all_corrections()}

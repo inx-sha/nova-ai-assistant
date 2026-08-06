@@ -85,6 +85,15 @@ def start_scheduler() -> None:
         id="refresh_pack_topics",
         next_run_time=None,  # don't fire immediately on startup
     )
+
+    _scheduler.add_job(
+        lambda: __import__("knowledge.backup", fromlist=["create_backup"]).create_backup(),
+        "interval",
+        hours=24,
+        id="daily_backup",
+        next_run_time=None,
+    )
+    
     _scheduler.start()
     logger.info(f"Scheduler started: checking pack freshness every {REFRESH_INTERVAL_HOURS}h")
 
