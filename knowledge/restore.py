@@ -7,7 +7,6 @@ import zipfile
 from pathlib import Path
 
 from config import DATA_DIR
-from knowledge.backup import CLOUD_SYNC_FOLDER, list_backups
 
 
 def _resolve_backup_path(name_or_path: str) -> Path:
