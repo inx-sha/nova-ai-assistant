@@ -89,26 +89,6 @@ def query(text: str, top_k: int = 5, category_filter: str | None = None) -> list
             break
 
     return out
-    """..."""
-    vector = embed(text)
-    with _write_lock:
-        results = get_collection().query(
-            query_embeddings=[vector],
-            n_results=top_k,
-        )
-
-    out = []
-    docs = results.get("documents", [[]])[0]
-    metas = results.get("metadatas", [[]])[0]
-    dists = results.get("distances", [[]])[0]
-
-    for doc, meta, dist in zip(docs, metas, dists):
-        out.append({
-            "text": doc,
-            "metadata": meta,
-            "similarity": 1 - dist,
-        })
-    return out
 
 
 def count() -> int:
