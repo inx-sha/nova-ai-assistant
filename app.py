@@ -20,6 +20,7 @@ from knowledge.packs import install_pack, list_available_packs
 from core.memory import get_all_packs
 from knowledge.scheduler import start_scheduler, stop_scheduler, refresh_stale_pack_topics
 from knowledge.internet import verify_claim
+from knowledge.backup import create_backup, list_backups
 from core.memory import add_correction, get_all_corrections
 from core.memory import get_all_sessions, delete_session
 from knowledge.packs import list_available_packs
@@ -328,6 +329,20 @@ def create_backup_endpoint() -> dict:
     from knowledge.backup import create_backup
     return create_backup()
 
+@app.post("/backup/create")
+async def backup_create():
+    try:
+        result = create_backup()
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Backup failed: {e}")
+
+
+@app.get("/backup/list")
+async def backup_list():
+    return {"backups": list_backups()}
 
 @app.get("/backup/list")
 def list_backups_endpoint() -> dict:

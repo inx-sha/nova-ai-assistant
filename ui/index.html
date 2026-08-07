@@ -213,6 +213,7 @@
 <button id="starredBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">⭐</button>
 <button id="dashboardBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">📊</button>
 <button id="voiceToggleBtn" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">🔇</button>
+<button id="backupBtn" title="Back up now" style="margin-left:6px;background:#1a1c22;color:white;border:1px solid #2a2d34;border-radius:6px;padding:6px 10px;cursor:pointer;">💾</button>
 </header>
   <div id="dashboardPanel" style="display:none;position:absolute;top:60px;right:16px;width:360px;max-height:500px;overflow-y:auto;background:#1a1c22;border:1px solid #2a2d34;border-radius:8px;padding:16px;z-index:20;"></div>
   <div id="starredPanel" style="display:none;position:absolute;top:60px;right:16px;width:320px;max-height:400px;overflow-y:auto;background:#1a1c22;border:1px solid #2a2d34;border-radius:8px;padding:12px;z-index:20;"></div>
@@ -264,6 +265,29 @@ voiceToggleBtn.addEventListener("click", () => {
   localStorage.setItem("nova_voice_enabled", voiceEnabled);
   voiceToggleBtn.textContent = voiceEnabled ? "🔊" : "🔇";
   if (!voiceEnabled) speechSynthesis.cancel(); // stop mid-sentence if turned off
+});
+
+const backupBtn = document.getElementById("backupBtn");
+
+backupBtn.addEventListener("click", async () => {
+  backupBtn.disabled = true;
+  backupBtn.textContent = "⏳";
+  try {
+    const res = await fetch("/backup/create", { method: "POST" });
+    if (!res.ok) throw new Error("Backup failed");
+    const data = await res.json();
+    backupBtn.textContent = "✅";
+    backupBtn.title = `Backed up: ${data.backup_name} (${data.size_mb} MB)`;
+  } catch (err) {
+    backupBtn.textContent = "❌";
+    backupBtn.title = "Backup failed — check server logs";
+  } finally {
+    setTimeout(() => {
+      backupBtn.textContent = "💾";
+      backupBtn.title = "Back up now";
+      backupBtn.disabled = false;
+    }, 2500);
+  }
 });
 
 function speak(text) {

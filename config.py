@@ -29,3 +29,11 @@ RAG_BROAD_MIN_CHUNKS = int(os.getenv("NOVA_RAG_BROAD_MIN_CHUNKS", "3"))
 # --- Chunking ---
 CHUNK_SIZE_TOKENS = int(os.getenv("NOVA_CHUNK_SIZE", "512"))
 CHUNK_OVERLAP_TOKENS = int(os.getenv("NOVA_CHUNK_OVERLAP", "50"))
+
+# --- Backup ---
+CLOUD_SYNC_FOLDER = Path(os.getenv(
+    "NOVA_BACKUP_FOLDER",
+    r"C:\Users\insha\OneDrive\NOVA_Backups"
+))
+CLOUD_SYNC_FOLDER.mkdir(parents=True, exist_ok=True)
+MAX_BACKUPS = int(os.getenv("NOVA_MAX_BACKUPS", "10"))
