@@ -46,7 +46,7 @@ DUPLICATE_THRESHOLD = 0.95
 
 def ingest_text(text: str, source: str, tags: list[str] | None = None,
                  confidence: float = 1.0, categories: list[str] | None = None,
-                 tier: str = "cache") -> dict:
+                 tier: str = "cache", doc_type: str = "general") -> dict:
     """Chunks and stores text, skipping near-duplicates. Returns counts."""
     chunks = chunk_text(text)
     stored = 0
@@ -58,7 +58,7 @@ def ingest_text(text: str, source: str, tags: list[str] | None = None,
             skipped += 1
             continue
         add_chunk(chunk, source=source, tags=tags, confidence=confidence,
-                  categories=categories, tier=tier)
+                  categories=categories, tier=tier, doc_type=doc_type)
         stored += 1
 
     return {"chunks_stored": stored, "chunks_skipped_as_duplicate": skipped}

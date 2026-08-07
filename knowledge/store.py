@@ -29,7 +29,7 @@ def get_collection():
 
 def add_chunk(text: str, source: str, tags: list[str] | None = None,
               confidence: float = 1.0, categories: list[str] | None = None,
-              tier: str = "cache") -> str:
+              tier: str = "cache", doc_type: str = "general") -> str:
     """..."""
     chunk_id = str(uuid.uuid4())
     vector = embed(text)
@@ -38,11 +38,12 @@ def add_chunk(text: str, source: str, tags: list[str] | None = None,
             ids=[chunk_id],
             embeddings=[vector],
             documents=[text],
-            metadatas=[{
+           metadatas=[{
                 "source": source,
                 "tags": ",".join(tags or []),
                 "confidence": confidence,
                 "categories": ",".join(categories or ["general"]),
+                "doc_type": doc_type,
                 "tier": tier,
                 "date_collected": datetime.now(timezone.utc).isoformat(),
             }],
@@ -50,19 +51,29 @@ def add_chunk(text: str, source: str, tags: list[str] | None = None,
     return chunk_id
 
 
-def query(text: str, top_k: int = 5, category_filter: str | None = None) -> list[dict]:
+def query(text: str, top_k: int = 5, category_filter: str | None = None,
+          doc_type_filter: list[str] | None = ["general"]) -> list[dict]:
     """
     Returns [{"text", "metadata", "similarity"}, ...] sorted best-first.
+
     If category_filter is set, only chunks whose categories include it
     are considered -- filtered in Python after retrieval, since Chroma's
     metadata filtering doesn't reliably substring-match our comma-joined
     categories field.
+
+    doc_type_filter restricts results to chunks whose doc_type is in the
+    given list. Defaults to ["general"], which excludes non-technical
+    documents (e.g. doc_type="resume") from ordinary Q&A retrieval, since
+    they can share enough vocabulary with technical docs to pollute results
+    via embedding similarity alone. Pass None to disable this filtering
+    entirely (e.g. when the user is specifically asking about their resume).
     """
     vector = embed(text)
+    filtering_active = bool(category_filter) or doc_type_filter is not None
     # Pull more candidates than requested when filtering, since some
     # will get discarded -- otherwise a filtered query could return
     # fewer than top_k results even when enough matches actually exist.
-    fetch_k = top_k * 4 if category_filter else top_k
+    fetch_k = top_k * 4 if filtering_active else top_k
 
     with _write_lock:
         results = get_collection().query(
@@ -79,6 +90,9 @@ def query(text: str, top_k: int = 5, category_filter: str | None = None) -> list
         if category_filter:
             categories = meta.get("categories", "").split(",")
             if category_filter not in categories:
+                continue
+        if doc_type_filter is not None:
+            if meta.get("doc_type", "general") not in doc_type_filter:
                 continue
         out.append({
             "text": doc,
@@ -104,6 +118,18 @@ def set_tier(chunk_id: str, tier: str) -> bool:
             return False
         metadata = existing["metadatas"][0]
         metadata["tier"] = tier
+        collection.update(ids=[chunk_id], metadatas=[metadata])
+        return True
+
+def set_doc_type(chunk_id: str, doc_type: str) -> bool:
+    """Retroactively tag an existing chunk's doc_type."""
+    with _write_lock:
+        collection = get_collection()
+        existing = collection.get(ids=[chunk_id])
+        if not existing or not existing.get("ids"):
+            return False
+        metadata = existing["metadatas"][0]
+        metadata["doc_type"] = doc_type
         collection.update(ids=[chunk_id], metadatas=[metadata])
         return True
 

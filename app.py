@@ -74,6 +74,7 @@ class IngestRequest(BaseModel):
     tags: list[str] = []
     confidence: float = 1.0
     categories: list[str] = ["general"]
+    doc_type: str = "general"
 
 
 class IngestResponse(BaseModel):
@@ -197,6 +198,7 @@ def ingest_endpoint(req: IngestRequest) -> IngestResponse:
     result = ingest_text(
         req.text, req.source, tags=req.tags,
         confidence=req.confidence, categories=req.categories,
+        doc_type=req.doc_type,
     )
     return IngestResponse(**result)
 
@@ -214,6 +216,7 @@ async def ingest_document_endpoint(
     tags: str = Form(""),
     confidence: float = Form(1.0),
     categories: str = Form("general"),
+    doc_type: str = Form("general"),
 ) -> IngestResponse:
     filename_lower = file.filename.lower()
     extension = None
@@ -248,6 +251,7 @@ async def ingest_document_endpoint(
     result = ingest_text(
         text, source=file.filename, tags=tags_list,
         confidence=confidence, categories=categories_list,
+        doc_type=doc_type,
     )
     return IngestResponse(**result)
 
