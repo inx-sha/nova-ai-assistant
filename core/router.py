@@ -139,7 +139,17 @@ def _prepare_response(session_id: str, user_input: str) -> _PreparedResponse:
     elif broad_coverage_count >= RAG_BROAD_MIN_CHUNKS:
         mode = "broad_confidence"
         context = _format_context(hits)
-        prompt = f"Context:\n{context}\n\nQuestion: {user_input}"
+        prompt = (
+            f"The context below is real, stored knowledge retrieved from "
+            f"your local knowledge base -- it is not something you need "
+            f"to be skeptical of. Multiple relevant pieces of context "
+            f"were found; synthesize them into a clear answer. Do not "
+            f"claim a term or topic is unfamiliar, unrecognized, or "
+            f"outside your knowledge if the context below describes it "
+            f"-- the context takes priority over your own training "
+            f"knowledge on this topic.\n\n"
+            f"Context:\n{context}\n\nQuestion: {user_input}"
+        )
     elif top_similarity >= RAG_LOW_CONFIDENCE:
         mode = "low_confidence"
         context = _format_context(hits)
@@ -186,7 +196,7 @@ def _prepare_response(session_id: str, user_input: str) -> _PreparedResponse:
     history_limit = 0 if mode in ("high_confidence", "broad_confidence", "learned_from_internet") else 10
     recent = memory.get_recent_messages(session_id, limit=history_limit) if history_limit else []
     messages = [{"role": "system", "content": _build_system_prompt()}, *recent,
-                {"role": "user", "content": user_input}]
+                {"role": "user", "content": prompt}]
 
     answer_temperature = 0.1 if mode in ("high_confidence", "broad_confidence", "learned_from_internet") else None
 
