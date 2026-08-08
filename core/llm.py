@@ -1,9 +1,3 @@
-"""
-Thin wrapper around Ollama's HTTP API.
-
-This is the ONLY file that knows Ollama exists. If we ever switch to a
-different runtime later, this is the only file that needs to change.
-"""
 from __future__ import annotations
 
 import json

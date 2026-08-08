@@ -24,6 +24,7 @@ from knowledge.backup import create_backup, list_backups
 from core.memory import add_correction, get_all_corrections
 from core.memory import get_all_sessions, delete_session
 from knowledge.packs import list_available_packs
+from knowledge.doc_reader import classify_doc_type
 from core.memory import set_session_mode as _set_session_mode
 from core.memory import (
     set_message_pinned, set_message_starred, get_pinned_messages,
@@ -216,7 +217,7 @@ async def ingest_document_endpoint(
     tags: str = Form(""),
     confidence: float = Form(1.0),
     categories: str = Form("general"),
-    doc_type: str = Form("general"),
+    doc_type: str | None = Form(None),
 ) -> IngestResponse:
     filename_lower = file.filename.lower()
     extension = None
@@ -247,6 +248,9 @@ async def ingest_document_endpoint(
 
     tags_list = [t.strip() for t in tags.split(",") if t.strip()]
     categories_list = [c.strip() for c in categories.split(",") if c.strip()]
+
+    if doc_type is None:
+        doc_type = classify_doc_type(text, source=file.filename)
 
     result = ingest_text(
         text, source=file.filename, tags=tags_list,

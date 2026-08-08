@@ -52,7 +52,7 @@ def add_chunk(text: str, source: str, tags: list[str] | None = None,
 
 
 def query(text: str, top_k: int = 5, category_filter: str | None = None,
-          doc_type_filter: list[str] | None = ["general"]) -> list[dict]:
+          doc_type_filter: list[str] | None = ["general", "technical_report"]) -> list[dict]:
     """
     Returns [{"text", "metadata", "similarity"}, ...] sorted best-first.
 
@@ -62,11 +62,11 @@ def query(text: str, top_k: int = 5, category_filter: str | None = None,
     categories field.
 
     doc_type_filter restricts results to chunks whose doc_type is in the
-    given list. Defaults to ["general"], which excludes non-technical
-    documents (e.g. doc_type="resume") from ordinary Q&A retrieval, since
-    they can share enough vocabulary with technical docs to pollute results
-    via embedding similarity alone. Pass None to disable this filtering
-    entirely (e.g. when the user is specifically asking about their resume).
+    given list. Defaults to ["general", "technical_report"], which excludes
+    resume-type documents from ordinary Q&A retrieval, since they can share
+    enough vocabulary with technical docs to pollute results via embedding
+    similarity alone. Pass None to disable this filtering entirely (e.g.
+    when the user is specifically asking about their resume).
     """
     vector = embed(text)
     filtering_active = bool(category_filter) or doc_type_filter is not None

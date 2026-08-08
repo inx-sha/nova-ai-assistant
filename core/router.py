@@ -61,6 +61,8 @@ CASUAL_PATTERNS = {
 }
 
 
+
+
 def _is_casual(text: str) -> bool:
     cleaned = text.strip().lower().rstrip("!?.")
     normalized = cleaned.replace(",", " ").replace("-", " ")
@@ -81,6 +83,15 @@ def _is_casual(text: str) -> bool:
 
     return False
 
+RESUME_PATTERNS = {
+    "resume", "cv", "my experience", "my education", "my skills",
+    "my background", "my work experience", "my projects", "my qualifications",
+}
+
+
+def _is_resume_query(text: str) -> bool:
+    cleaned = text.strip().lower()
+    return any(p in cleaned for p in RESUME_PATTERNS)
 
 @dataclass
 class RouteResult:
@@ -121,7 +132,15 @@ def _prepare_response(session_id: str, user_input: str) -> _PreparedResponse:
         )
 
     category_filter = session_mode if session_mode != "general" else None
-    hits = knowledge_query(user_input, top_k=RAG_TOP_K, category_filter=category_filter)
+
+    if _is_resume_query(user_input):
+        doc_type_filter = None  # disable filtering -- let resume chunks through
+    else:
+        doc_type_filter = ["general", "technical_report"]  # exclude resume from ordinary Q&A
+
+    hits = knowledge_query(user_input, top_k=RAG_TOP_K, category_filter=category_filter,
+                            doc_type_filter=doc_type_filter)
+
     top_similarity = hits[0]["similarity"] if hits else 0.0
     broad_coverage_count = sum(1 for h in hits if h["similarity"] >= RAG_BROAD_COVERAGE_THRESHOLD)
 
