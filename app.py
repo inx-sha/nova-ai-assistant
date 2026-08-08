@@ -116,6 +116,8 @@ class SessionInfo(BaseModel):
     last_activity: str
     mode: str = "general"
     archived: bool = False
+    pinned: bool = False
+    starred: bool = False
 
 
 class SessionsListResponse(BaseModel):
@@ -147,11 +149,29 @@ class RetryRequest(BaseModel):
 class ArchiveRequest(BaseModel):
     archived: bool
 
+class PinSessionRequest(BaseModel):
+    pinned: bool
+
+class StarSessionRequest(BaseModel):
+    starred: bool
+
 @app.post("/sessions/{session_id}/archive")
 def archive_session_endpoint(session_id: str, req: ArchiveRequest) -> dict:
     from core.memory import set_session_archived
     set_session_archived(session_id, req.archived)
     return {"session_id": session_id, "archived": req.archived}
+
+@app.post("/sessions/{session_id}/pin")
+def pin_session_endpoint(session_id: str, req: PinSessionRequest) -> dict:
+    from core.memory import set_session_pinned
+    set_session_pinned(session_id, req.pinned)
+    return {"session_id": session_id, "pinned": req.pinned}
+
+@app.post("/sessions/{session_id}/star")
+def star_session_endpoint(session_id: str, req: StarSessionRequest) -> dict:
+    from core.memory import set_session_starred
+    set_session_starred(session_id, req.starred)
+    return {"session_id": session_id, "starred": req.starred}
 
 @app.post("/sessions/move_message")
 def move_message_endpoint(req: MoveMessageRequest) -> dict:
@@ -415,4 +435,3 @@ def get_starred_endpoint() -> dict:
 def delete_session_endpoint(session_id: str) -> dict:
     deleted = delete_session(session_id)
     return {"deleted_messages": deleted}
-

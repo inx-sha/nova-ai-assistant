@@ -92,6 +92,8 @@ def init_db() -> None:
         conn.executescript(SCHEMA)
         _migrate_add_column(conn, "conversations", "pinned", "INTEGER NOT NULL DEFAULT 0")
         _migrate_add_column(conn, "conversations", "starred", "INTEGER NOT NULL DEFAULT 0")
+        _migrate_add_column(conn, "sessions", "pinned", "INTEGER NOT NULL DEFAULT 0")
+        _migrate_add_column(conn, "sessions", "starred", "INTEGER NOT NULL DEFAULT 0")
 
 
 def _migrate_add_column(conn, table: str, column: str, definition: str) -> None:
@@ -261,26 +263,45 @@ def get_verified_corrections() -> list[dict]:
 
 # --- Session listing ---
 
-def get_all_sessions() -> list[dict]:
+def get_all_sessions(include_archived: bool = False) -> list[dict]:
+    """
+    Returns one entry per distinct session with title, last activity,
+    mode, and archived/pinned/starred status -- everything the sidebar needs.
+    """
     with get_conn() as conn:
         rows = conn.execute(
             """
-            SELECT session_id,
-                   MIN(CASE WHEN role = 'user' THEN content END) AS first_message,
-                   MAX(timestamp) AS last_activity
-            FROM conversations
-            GROUP BY session_id
+            SELECT c.session_id,
+                   MIN(CASE WHEN c.role = 'user' THEN c.content END) AS first_message,
+                   MAX(c.timestamp) AS last_activity
+            FROM conversations c
+            GROUP BY c.session_id
             ORDER BY last_activity DESC
             """
         ).fetchall()
 
+        session_meta = {
+            r["session_id"]: {"mode": r["mode"], "archived": r["archived"],
+                               "pinned": r["pinned"], "starred": r["starred"]}
+            for r in conn.execute(
+                "SELECT session_id, mode, archived, pinned, starred FROM sessions"
+            ).fetchall()
+        }
+
     sessions = []
     for r in rows:
+        meta = session_meta.get(r["session_id"], {"mode": "general", "archived": 0, "pinned": 0, "starred": 0})
+        if not include_archived and meta["archived"]:
+            continue
         title = (r["first_message"] or "New chat")[:60]
         sessions.append({
             "session_id": r["session_id"],
             "title": title,
             "last_activity": r["last_activity"],
+            "mode": meta["mode"],
+            "archived": bool(meta["archived"]),
+            "pinned": bool(meta["pinned"]),
+            "starred": bool(meta["starred"]),
         })
     return sessions
 
@@ -325,49 +346,29 @@ def set_session_archived(session_id: str, archived: bool) -> None:
             (int(archived), _now(), session_id),
         )
 
+
+def set_session_pinned(session_id: str, pinned: bool) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE sessions SET pinned = ?, updated_at = ? WHERE session_id = ?",
+            (int(pinned), _now(), session_id),
+        )
+
+
+def set_session_starred(session_id: str, starred: bool) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE sessions SET starred = ?, updated_at = ? WHERE session_id = ?",
+            (int(starred), _now(), session_id),
+        )
+
+
 def set_session_mode(session_id: str, mode: str) -> None:
     with get_conn() as conn:
         conn.execute(
             "UPDATE sessions SET mode = ?, updated_at = ? WHERE session_id = ?",
             (mode, _now(), session_id),
         )
-
-def get_all_sessions(include_archived: bool = False) -> list[dict]:
-    """
-    Returns one entry per distinct session with title, last activity,
-    mode, and archived status -- everything the sidebar needs.
-    """
-    with get_conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT c.session_id,
-                   MIN(CASE WHEN c.role = 'user' THEN c.content END) AS first_message,
-                   MAX(c.timestamp) AS last_activity
-            FROM conversations c
-            GROUP BY c.session_id
-            ORDER BY last_activity DESC
-            """
-        ).fetchall()
-
-        session_meta = {
-            r["session_id"]: {"mode": r["mode"], "archived": r["archived"]}
-            for r in conn.execute("SELECT session_id, mode, archived FROM sessions").fetchall()
-        }
-
-    sessions = []
-    for r in rows:
-        meta = session_meta.get(r["session_id"], {"mode": "general", "archived": 0})
-        if not include_archived and meta["archived"]:
-            continue
-        title = (r["first_message"] or "New chat")[:60]
-        sessions.append({
-            "session_id": r["session_id"],
-            "title": title,
-            "last_activity": r["last_activity"],
-            "mode": meta["mode"],
-            "archived": bool(meta["archived"]),
-        })
-    return sessions
 
 def get_all_distinct_modes() -> list[str]:
     with get_conn() as conn:
