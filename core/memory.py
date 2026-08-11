@@ -68,7 +68,18 @@ CREATE TABLE IF NOT EXISTS sessions (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS session_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    source TEXT NOT NULL,
+    doc_type TEXT,
+    categories TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id);
+CREATE INDEX IF NOT EXISTS idx_session_files_session ON session_files(session_id);
 """
 
 
@@ -309,10 +320,33 @@ def get_all_sessions(include_archived: bool = False) -> list[dict]:
 def delete_session(session_id: str) -> int:
     """Deletes all messages for a session. Returns count deleted."""
     with get_conn() as conn:
+        conn.execute("DELETE FROM session_files WHERE session_id = ?", (session_id,))
         cursor = conn.execute(
             "DELETE FROM conversations WHERE session_id = ?", (session_id,)
         )
         return cursor.rowcount
+
+# --- Session files ---
+
+def add_session_file(session_id: str, filename: str, source: str, doc_type: str | None = None,
+                    categories: str | None = None) -> int:
+    with get_conn() as conn:
+        cursor = conn.execute(
+            "INSERT INTO session_files (session_id, filename, source, doc_type, categories, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (session_id, filename, source, doc_type, categories, _now()),
+        )
+        return cursor.lastrowid
+
+
+def get_session_files(session_id: str) -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, filename, source, doc_type, categories, created_at "
+            "FROM session_files WHERE session_id = ? ORDER BY created_at DESC",
+            (session_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 # --- Session metadata ---
 

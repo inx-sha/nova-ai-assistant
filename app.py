@@ -21,7 +21,7 @@ from core.memory import get_all_packs
 from knowledge.scheduler import start_scheduler, stop_scheduler, refresh_stale_pack_topics
 from knowledge.internet import verify_claim
 from knowledge.backup import create_backup, list_backups
-from core.memory import add_correction, get_all_corrections
+from core.memory import add_correction, get_all_corrections, add_session_file, get_session_files
 from core.memory import get_all_sessions, delete_session
 from knowledge.packs import list_available_packs
 from knowledge.doc_reader import classify_doc_type
@@ -238,6 +238,7 @@ async def ingest_document_endpoint(
     confidence: float = Form(1.0),
     categories: str = Form("general"),
     doc_type: str | None = Form(None),
+    session_id: str = Form(""),
 ) -> IngestResponse:
     filename_lower = file.filename.lower()
     extension = None
@@ -277,7 +278,20 @@ async def ingest_document_endpoint(
         confidence=confidence, categories=categories_list,
         doc_type=doc_type,
     )
+
+    if session_id.strip():
+        from core.memory import ensure_session
+        ensure_session(session_id, mode=categories_list[0] if categories_list else "general")
+        add_session_file(
+            session_id, file.filename, file.filename,
+            doc_type=doc_type, categories=", ".join(categories_list)
+        )
+
     return IngestResponse(**result)
+
+@app.get("/sessions/{session_id}/files")
+def get_session_files_endpoint(session_id: str) -> dict:
+    return {"files": get_session_files(session_id)}
 
 @app.post("/knowledge/pin", response_model=PinResponse)
 def pin_endpoint(req: PinRequest) -> PinResponse:

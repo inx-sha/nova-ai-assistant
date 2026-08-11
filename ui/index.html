@@ -10,23 +10,23 @@
 <meta name="theme-color" content="#2f6feb">
 <style>
   :root {
-    --color-bg: #0f1115;
-    --color-surface: #16181d;
-    --color-surface-2: #1a1c22;
-    --color-surface-hover: #21242c;
-    --color-border: #2a2d34;
-    --color-primary: #2f6feb;
-    --color-primary-hover: #4a80f0;
-    --color-primary-soft: rgba(47, 111, 235, 0.16);
-    --color-text: #eee;
-    --color-text-muted: #999;
-    --color-text-faint: #666;
-    --color-success: #6fdc8c;
-    --color-warning: #dcb96f;
-    --color-error: #dc6f6f;
-    --color-info: #6fb8dc;
-    --color-star: #e0c341;
-    --color-star-soft: rgba(224, 195, 65, 0.16);
+    --color-bg: #f7f7f8;
+    --color-surface: #ffffff;
+    --color-surface-2: #f2f3f5;
+    --color-surface-hover: #eceef1;
+    --color-border: #e5e7eb;
+    --color-primary: #111827;
+    --color-primary-hover: #374151;
+    --color-primary-soft: rgba(17, 24, 39, 0.08);
+    --color-text: #111111;
+    --color-text-muted: #4b5563;
+    --color-text-faint: #8a8f98;
+    --color-success: #0f8b5d;
+    --color-warning: #b57a13;
+    --color-error: #c33c3c;
+    --color-info: #296c95;
+    --color-star: #b28a00;
+    --color-star-soft: rgba(178, 138, 0, 0.12);
 
     --radius-sm: 6px;
     --radius-md: 8px;
@@ -43,6 +43,26 @@
 
     --icon-size: 18px;
     --icon-size-sm: 14px;
+  }
+
+  body[data-theme="dark"] {
+    --color-bg: #0f1115;
+    --color-surface: #171a1f;
+    --color-surface-2: #1d2128;
+    --color-surface-hover: #252b33;
+    --color-border: #2f3742;
+    --color-primary: #f3f4f6;
+    --color-primary-hover: #dfe5ef;
+    --color-primary-soft: rgba(243, 244, 246, 0.1);
+    --color-text: #f2f2f2;
+    --color-text-muted: #c3c7ce;
+    --color-text-faint: #7c8697;
+    --color-success: #6fdc8c;
+    --color-warning: #dcb96f;
+    --color-error: #dc6f6f;
+    --color-info: #6fb8dc;
+    --color-star: #e0c341;
+    --color-star-soft: rgba(224, 195, 65, 0.16);
   }
 
   * { box-sizing: border-box; }
@@ -126,7 +146,7 @@
     border-radius: var(--radius-md);
     border: none;
     background: var(--color-primary);
-    color: white;
+    color: var(--color-surface);
     font-size: 0.9em;
     font-weight: 600;
     cursor: pointer;
@@ -163,10 +183,44 @@
     border-right: 1px solid var(--color-border);
     display: flex;
     flex-direction: column;
+    position: relative;
+    z-index: 1;
     transition: margin-left var(--transition-normal);
   }
   #sidebar.collapsed { margin-left: -260px; }
-  #newChatBtn { margin: 12px; }
+  #sidebarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 12px 0;
+  }
+  #sidebarModeFilter {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    color: var(--color-text);
+    font-size: 0.8em;
+    cursor: pointer;
+  }
+  #sidebarModeFilter:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  #searchBtn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  #newChatBtn {
+    width: calc(100% - 24px);
+    margin: 12px;
+    box-sizing: border-box;
+  }
   #sessionList {
     flex: 1;
     overflow-y: auto;
@@ -180,11 +234,11 @@
     border-radius: var(--radius-md);
     cursor: pointer;
     font-size: 0.9em;
-    color: #ccc;
+    color: var(--color-text);
     margin-bottom: 2px;
   }
   .session-item:hover { background: var(--color-surface-hover); }
-  .session-item.active { background: #2a3550; color: white; }
+  .session-item.active { background: var(--color-surface-hover); color: var(--color-text); }
   .session-title {
     flex: 1;
     overflow: hidden;
@@ -208,7 +262,6 @@
   .session-action:hover { background: var(--color-surface); color: var(--color-text); }
   .session-action.delete:hover { color: var(--color-error); }
 
-  /* Conversation-level pin/star: section labels */
   .session-group-label {
     padding: 10px 12px 4px;
     font-size: 0.7em;
@@ -223,7 +276,6 @@
   .session-action.persistent.pin-active { color: var(--color-primary); }
   .session-action.persistent.star-active { color: var(--color-star); }
 
-  /* Session status icons (non-interactive, always visible when active) */
   .session-status-icons {
     display: flex;
     align-items: center;
@@ -234,7 +286,6 @@
   .session-status-icons .status-pin { color: var(--color-primary); }
   .session-status-icons .status-star { color: var(--color-star); }
 
-  /* Three-dot session menu */
   .session-menu-wrap { position: relative; flex-shrink: 0; }
   .session-menu-btn {
     opacity: 0;
@@ -320,6 +371,80 @@
     justify-content: center;
   }
   #settingsOverlay.open { display: flex; }
+
+  #searchOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.52);
+    z-index: 40;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #searchOverlay.open { display: flex; }
+  #searchSheet {
+    width: min(520px, 100%);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+  }
+  #searchInput {
+    width: 100%;
+    margin-top: 12px;
+    padding: 11px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-2);
+    color: var(--color-text);
+    font-size: 0.95em;
+  }
+  #searchInput:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+  #searchResults {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .search-result-item {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+  }
+  .search-result-item:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-primary);
+  }
+  .search-result-item-title {
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .search-result-item-snippet {
+    color: var(--color-text-muted);
+    font-size: 0.8em;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .search-empty {
+    color: var(--color-text-faint);
+    font-size: 0.88em;
+    padding: 10px 2px;
+  }
+
   #settingsModal {
     width: 380px;
     max-width: calc(100vw - 32px);
@@ -354,6 +479,7 @@
     flex-direction: column;
     min-width: 0;
     position: relative;
+    z-index: 2;
   }
   header {
     padding: 12px 16px;
@@ -382,7 +508,6 @@
   }
   #modeSelect:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
-  /* Header three-dot menu */
   .header-menu-wrap { position: relative; flex-shrink: 0; }
   .header-menu-dropdown {
     display: none;
@@ -434,7 +559,7 @@
     text-align: center;
     padding: 20px;
   }
-  #emptyState h2 { color: #999; margin-bottom: 8px; font-weight: 600; }
+  #emptyState h2 { color: var(--color-text); margin-bottom: 8px; font-weight: 600; }
   .example-chip {
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
@@ -444,7 +569,7 @@
     display: inline-block;
     cursor: pointer;
     font-size: 0.85em;
-    color: #aaa;
+    color: var(--color-text);
     transition: background var(--transition-fast);
   }
   .example-chip:hover { background: var(--color-surface-hover); }
@@ -455,9 +580,11 @@
     border-radius: var(--radius-lg);
     line-height: 1.4;
     white-space: pre-wrap;
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
   }
-  .user { align-self: flex-end; background: var(--color-primary); color: white; }
-  .assistant { align-self: flex-start; background: var(--color-surface-2); }
+  .user { align-self: flex-end; background: var(--color-surface-2); }
+  .assistant { align-self: flex-start; background: var(--color-surface); }
   .meta {
     font-size: 0.72em;
     opacity: 0.65;
@@ -478,7 +605,7 @@
   .mode-low_confidence { background: #4d3f1f; color: var(--color-warning); }
   .mode-no_local_answer { background: #4d1f1f; color: var(--color-error); }
   .mode-learned_from_internet { background: #1f3d4d; color: var(--color-info); }
-  .mode-casual { background: var(--color-border); color: #999; }
+  .mode-casual { background: var(--color-surface-2); color: var(--color-text-muted); }
 
   .msg-actions { margin-top: 6px; display: flex; gap: 6px; }
 
@@ -498,24 +625,94 @@
 
   #inputBar {
     display: flex;
+    flex-direction: column;
     padding: 12px;
     border-top: 1px solid var(--color-border);
     gap: 8px;
+  }
+
+  #attachmentPreview {
+    display: none;
     align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    max-width: 100%;
+    padding: 6px 8px 6px 10px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.82em;
+    color: var(--color-text);
+  }
+  #attachmentPreview.visible { display: flex; }
+  #attachmentPreview svg.attachment-file-icon {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+  }
+  #attachmentName {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #attachmentClear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: var(--color-surface-hover);
+    color: var(--color-text-muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+  #attachmentClear:hover { background: var(--color-border); color: var(--color-text); }
+
+  #composerRow {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
   }
   #messageInput {
     flex: 1;
+    min-height: 38px;
+    max-height: 180px;
     height: 38px;
-    padding: 0 12px;
+    padding: 10px 12px;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
-    color: white;
+    color: var(--color-text);
     font-size: 1em;
+    line-height: 1.4;
+    resize: none;
+    overflow-y: auto;
+    box-sizing: border-box;
+    font-family: inherit;
   }
   #messageInput:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 
-  #dashboardPanel, #starredPanel {
+  #sidebarExpandBtn {
+    position: fixed;
+    left: 12px;
+    top: 12px;
+    z-index: 50;
+    display: none;
+  }
+  body.sidebar-collapsed #sidebarExpandBtn {
+    display: inline-flex;
+  }
+
+  #dashboardPanel, #starredPanel, #filesPanel {
     display: none;
     position: absolute;
     top: 60px;
@@ -527,6 +724,7 @@
   }
   #dashboardPanel { width: 360px; max-height: 500px; overflow-y: auto; padding: 16px; }
   #starredPanel { width: 320px; max-height: 400px; overflow-y: auto; padding: 12px; }
+  #filesPanel { width: 340px; max-height: 420px; overflow-y: auto; padding: 12px; }
   .panel-header {
     display: flex;
     align-items: center;
@@ -547,15 +745,42 @@
   #pinnedBar svg { width: 14px; height: 14px; stroke: currentColor; flex-shrink: 0; }
 
   @media (max-width: 700px) {
-    #sidebar { position: absolute; z-index: 10; height: 100%; }
+    #sidebar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 1;
+      height: 100%;
+    }
+    #main {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      margin-left: 0;
+      transition: margin-left var(--transition-normal);
+    }
     #sidebar:not(.collapsed) { margin-left: 0; }
     #sidebar.collapsed { margin-left: -260px; }
+    body:not(.sidebar-collapsed) #main { margin-left: 260px; }
+    body.sidebar-collapsed #main { margin-left: 0; }
   }
 </style>
 </head>
 <body>
 
+<button id="sidebarExpandBtn" class="icon-btn" aria-label="Expand sidebar" title="Expand sidebar">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+
 <div id="sidebar">
+  <div id="sidebarHeader">
+    <select id="sidebarModeFilter" aria-label="Filter chats by topic" title="Filter chats by topic">
+      <option value="all">All chats</option>
+    </select>
+    <button id="searchBtn" class="icon-btn" aria-label="Search conversations" title="Search conversations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><line x1="16" y1="16" x2="21" y2="21"/></svg>
+    </button>
+  </div>
   <button id="newChatBtn" class="btn-secondary" aria-label="Start a new chat">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     New chat
@@ -565,6 +790,19 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg>
     <span>Settings</span>
   </button>
+</div>
+
+<div id="searchOverlay">
+  <div id="searchSheet" role="dialog" aria-modal="true" aria-label="Search conversations">
+    <div class="settings-modal-header">
+      <strong>Search conversations</strong>
+      <button id="searchCloseBtn" class="icon-btn" aria-label="Close search" title="Close search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+    <input id="searchInput" type="text" placeholder="Search by title or message content" autocomplete="off" />
+    <div id="searchResults"></div>
+  </div>
 </div>
 
 <div id="settingsOverlay">
@@ -602,6 +840,17 @@
 
     <div class="settings-row">
       <div class="settings-row-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2.5M12 18.5V21M4.93 4.93l1.77 1.77M17.3 17.3l1.77 1.77M3 12h2.5M18.5 12H21M4.93 19.07l1.77-1.77M17.3 6.7l1.77-1.77"/><circle cx="12" cy="12" r="4"/></svg>
+        <div>
+          <div class="settings-row-title">Theme</div>
+          <div class="settings-row-desc" id="themeRowDesc">Light theme active</div>
+        </div>
+      </div>
+      <button id="themeToggleBtn" class="icon-btn" aria-label="Toggle theme" title="Toggle theme"></button>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5V4z"/><path d="M8 4v5h8V4"/><path d="M8 14h8v6H8z"/></svg>
         <div>
           <div class="settings-row-title">Local backup</div>
@@ -635,6 +884,10 @@
             <span id="headerVoiceIconWrap"></span>
             <span>Spoken responses</span>
           </button>
+          <button id="headerFilesItem" class="header-menu-item" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+            <span>Files</span>
+          </button>
           <button id="headerStarredItem" class="header-menu-item" role="menuitem">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3l2.7 5.9 6.3.6-4.8 4.3 1.4 6.2L12 16.9 6.4 20l1.4-6.2L3 9.5l6.3-.6L12 3z"/></svg>
             <span>Starred messages</span>
@@ -643,6 +896,13 @@
       </div>
     </div>
   </header>
+  <div id="filesPanel">
+    <div class="panel-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      Files in this chat
+    </div>
+    <div id="filesBody"></div>
+  </div>
   <div id="dashboardPanel">
     <div class="panel-header">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="11"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="19" y1="20" x2="19" y2="14"/></svg>
@@ -673,18 +933,25 @@
   </div>
 
   <div id="inputBar">
-    <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.md" style="display:none;">
-    <button id="attachBtn" class="icon-btn" aria-label="Attach a file" title="Attach a file">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7.5 8.5 16a3 3 0 0 1-4.2-4.2L13 3.1a4.5 4.5 0 0 1 6.4 6.4L10 19a1 1 0 0 1-1.4-1.4l8.5-8.5"/></svg>
-    </button>
-    <button id="micBtn" class="icon-btn" aria-label="Voice input" title="Voice input (uses your browser's speech recognition)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
-    </button>
-    <input id="messageInput" type="text" placeholder="Ask NOVA..." autocomplete="off">
-    <button id="sendBtn" class="btn-primary" aria-label="Send message">
-      Send
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4 13 20l-2-7-7-1z"/></svg>
-    </button>
+    <div id="attachmentPreview" aria-live="polite">
+      <svg class="attachment-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+      <span id="attachmentName">No file selected</span>
+      <button id="attachmentClear" type="button" aria-label="Remove attachment">×</button>
+    </div>
+    <div id="composerRow">
+      <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.md" style="display:none;">
+      <button id="attachBtn" class="icon-btn" aria-label="Attach a file" title="Attach a file">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7.5 8.5 16a3 3 0 0 1-4.2-4.2L13 3.1a4.5 4.5 0 0 1 6.4 6.4L10 19a1 1 0 0 1-1.4-1.4l8.5-8.5"/></svg>
+      </button>
+      <button id="micBtn" class="icon-btn" aria-label="Voice input" title="Voice input (uses your browser's speech recognition)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+      </button>
+      <textarea id="messageInput" rows="1" placeholder="Ask NOVA..." autocomplete="off"></textarea>
+      <button id="sendBtn" class="btn-primary" aria-label="Send message">
+        Send
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4 13 20l-2-7-7-1z"/></svg>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -698,6 +965,8 @@ const ICONS = {
   spinner: '<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-opacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>',
   mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>',
   micActive: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0" fill="none"/><line x1="12" y1="18" x2="12" y2="22"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
   archive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
   undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><path d="M6 7V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2"/><path d="M8 7v12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V7"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
@@ -786,7 +1055,9 @@ const emptyState = document.getElementById("emptyState");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 const sessionList = document.getElementById("sessionList");
+const sidebarModeFilter = document.getElementById("sidebarModeFilter");
 const sidebar = document.getElementById("sidebar");
+const sidebarExpandBtn = document.getElementById("sidebarExpandBtn");
 const newChatBtn = document.getElementById("newChatBtn");
 const modeSelect = document.getElementById("modeSelect");
 const starredPanel = document.getElementById("starredPanel");
@@ -795,9 +1066,53 @@ const fileInput = document.getElementById("fileInput");
 const attachBtn = document.getElementById("attachBtn");
 
 let voiceEnabled = localStorage.getItem("nova_voice_enabled") === "true";
+let themeMode = localStorage.getItem("nova_theme") || "light";
+let sidebarTopicFilter = "all";
+
+async function loadSidebarModeFilterOptions() {
+  try {
+    const res = await fetch("/modes");
+    const data = await res.json();
+    const currentValue = sidebarModeFilter.value || "all";
+    sidebarModeFilter.innerHTML = '<option value="all">All chats</option>';
+
+    for (const mode of data.modes) {
+      const opt = document.createElement("option");
+      opt.value = mode;
+      opt.textContent = mode === "general" ? "General" : mode.replace(/_/g, " ");
+      sidebarModeFilter.appendChild(opt);
+    }
+
+    sidebarModeFilter.value = data.modes.includes(currentValue) ? currentValue : "all";
+  } catch (err) {
+    console.error("Could not load topic filter options:", err);
+  }
+}
 
 const headerVoiceItem = document.getElementById("headerVoiceItem");
 const headerVoiceIconWrap = document.getElementById("headerVoiceIconWrap");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+const themeRowDesc = document.getElementById("themeRowDesc");
+
+function applyTheme(theme) {
+  const selected = theme === "dark" ? "dark" : "light";
+  themeMode = selected;
+  document.body.setAttribute("data-theme", selected);
+  localStorage.setItem("nova_theme", selected);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.innerHTML = selected === "dark" ? ICONS.sun : ICONS.moon;
+    themeToggleBtn.title = selected === "dark" ? "Switch to light theme" : "Switch to dark theme";
+    themeToggleBtn.setAttribute("aria-label", selected === "dark" ? "Switch to light theme" : "Switch to dark theme");
+    themeToggleBtn.classList.toggle("active", selected === "dark");
+  }
+
+  if (themeRowDesc) {
+    themeRowDesc.textContent = selected === "dark" ? "Dark theme active" : "Light theme active";
+  }
+}
+
+applyTheme(themeMode);
 
 function updateHeaderVoiceItem() {
   headerVoiceIconWrap.innerHTML = voiceEnabled ? ICONS.volumeOn : ICONS.volumeOff;
@@ -893,6 +1208,27 @@ if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
 function showChat(hasMessages) {
   chat.style.display = hasMessages ? "flex" : "none";
   emptyState.style.display = hasMessages ? "none" : "flex";
+}
+
+function syncSidebarState() {
+  const collapsed = sidebar.classList.contains("collapsed");
+  document.body.classList.toggle("sidebar-collapsed", collapsed);
+  if (window.innerWidth <= 700) {
+    main.style.marginLeft = collapsed ? "0px" : "260px";
+  } else {
+    main.style.marginLeft = "0px";
+  }
+  if (collapsed) {
+    sidebarExpandBtn.style.display = "inline-flex";
+  } else {
+    sidebarExpandBtn.style.display = "none";
+  }
+}
+
+function autoResizeComposer() {
+  input.style.height = "auto";
+  const maxHeight = 180;
+  input.style.height = Math.min(input.scrollHeight, maxHeight) + "px";
 }
 
 function mkIconBtn(iconSvg, title, onClick, extraClass) {
@@ -1029,6 +1365,33 @@ function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId, i
 
 const dashboardPanel = document.getElementById("dashboardPanel");
 const dashboardBody = document.getElementById("dashboardBody");
+const filesPanel = document.getElementById("filesPanel");
+const filesBody = document.getElementById("filesBody");
+
+async function loadCurrentSessionFiles() {
+  try {
+    const res = await fetch(`/sessions/${sessionId}/files`);
+    const data = await res.json();
+    filesBody.innerHTML = "";
+
+    if (!data.files.length) {
+      const empty = document.createElement("div");
+      empty.style.cssText = "color:#666;margin-top:10px;";
+      empty.textContent = "No files uploaded to this chat yet.";
+      filesBody.appendChild(empty);
+      return;
+    }
+
+    for (const file of data.files) {
+      const row = document.createElement("div");
+      row.style.cssText = "padding:8px 6px;border-bottom:1px solid var(--color-border);font-size:0.85em;color:#ccc;";
+      row.innerHTML = `<div style="font-weight:600;color:var(--color-text);">${escapeHtml(file.filename)}</div><div style="color:var(--color-text-faint);margin-top:4px;">${escapeHtml(file.doc_type || "general")}${file.categories ? ` • ${escapeHtml(file.categories)}` : ""}</div>`;
+      filesBody.appendChild(row);
+    }
+  } catch (err) {
+    filesBody.innerHTML = '<div style="color:#666;margin-top:10px;">Unable to load files for this chat.</div>';
+  }
+}
 
 async function loadDashboard() {
   const res = await fetch("/knowledge/dashboard");
@@ -1102,8 +1465,25 @@ document.getElementById("dashboardBtn").addEventListener("click", async () => {
   if (isVisible) {
     dashboardPanel.style.display = "none";
   } else {
-    await loadDashboard();
     dashboardPanel.style.display = "block";
+    starredPanel.style.display = "none";
+    filesPanel.style.display = "none";
+    await loadDashboard();
+  }
+});
+
+const headerFilesItem = document.getElementById("headerFilesItem");
+headerFilesItem.addEventListener("click", async (e) => {
+  e.stopPropagation();
+  closeHeaderMenu();
+  const isVisible = filesPanel.style.display === "block";
+  if (isVisible) {
+    filesPanel.style.display = "none";
+  } else {
+    dashboardPanel.style.display = "none";
+    starredPanel.style.display = "none";
+    filesPanel.style.display = "block";
+    await loadCurrentSessionFiles();
   }
 });
 
@@ -1128,7 +1508,7 @@ function renderStarredPanel() {
   }
 
   const filterSelect = document.createElement("select");
-  filterSelect.style.cssText = "margin-top:10px;width:100%;background:var(--color-bg);color:white;border:1px solid var(--color-border);border-radius:6px;padding:6px;";
+  filterSelect.style.cssText = "margin-top:10px;width:100%;background:var(--color-bg);color:var(--color-text);border:1px solid var(--color-border);border-radius:6px;padding:6px;";
   const allOpt = document.createElement("option");
   allOpt.value = "__all__";
   allOpt.textContent = "All modes";
@@ -1175,14 +1555,99 @@ function renderStarredResults(filterMode) {
   }
 }
 
+let activeStreamController = null;
+let activePromptText = "";
+let isStreamingResponse = false;
+let pendingAttachment = null;
+
+const attachmentPreview = document.getElementById("attachmentPreview");
+const attachmentName = document.getElementById("attachmentName");
+const attachmentClear = document.getElementById("attachmentClear");
+
+function renderAttachmentPreview() {
+  if (!pendingAttachment) {
+    attachmentPreview.classList.remove("visible");
+    attachmentName.textContent = "No file selected";
+    return;
+  }
+
+  attachmentName.textContent = pendingAttachment.name;
+  attachmentPreview.classList.add("visible");
+}
+
+attachmentClear.addEventListener("click", () => {
+  pendingAttachment = null;
+  fileInput.value = "";
+  renderAttachmentPreview();
+});
+
+function updateSendButtonState() {
+  if (isStreamingResponse) {
+    sendBtn.innerHTML = `Stop <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10H7z"/></svg>`;
+    sendBtn.setAttribute("aria-label", "Stop current response");
+    sendBtn.classList.add("danger");
+  } else {
+    sendBtn.innerHTML = `Send <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4 13 20l-2-7-7-1z"/></svg>`;
+    sendBtn.setAttribute("aria-label", "Send message");
+    sendBtn.classList.remove("danger");
+  }
+}
+
+function stopCurrentResponse({ restorePrompt = true } = {}) {
+  if (!activeStreamController) return;
+  activeStreamController.abort();
+  activeStreamController = null;
+  isStreamingResponse = false;
+  updateSendButtonState();
+  if (restorePrompt && activePromptText) {
+    input.value = activePromptText;
+    autoResizeComposer();
+    input.focus();
+  }
+}
+
 async function sendMessage(text) {
   text = (text || input.value).trim();
-  if (!text) return;
+  if (!text && !pendingAttachment) return;
 
-  addMessage(text, "user");
+  if (isStreamingResponse) {
+    stopCurrentResponse({ restorePrompt: true });
+    return;
+  }
+
+  const fileToUpload = pendingAttachment;
+  const promptText = text || (fileToUpload ? "Please summarize or explain this file." : "");
+  if (!promptText) return;
+
+  if (fileToUpload) {
+    pendingAttachment = null;
+    renderAttachmentPreview();
+
+    const formData = new FormData();
+    formData.append("file", fileToUpload);
+    formData.append("tags", "chat-upload");
+    formData.append("confidence", "1.0");
+    formData.append("session_id", sessionId);
+
+    const currentModeRes = await fetch("/sessions");
+    const sessionsData = await currentModeRes.json();
+    const current = sessionsData.sessions.find(s => s.session_id === sessionId);
+    const mode = current ? current.mode : "general";
+    formData.append("categories", mode);
+
+    try {
+      await fetch("/knowledge/ingest_document", { method: "POST", body: formData });
+    } catch (err) {
+      addMessage("Error uploading file: " + err, "assistant");
+      return;
+    }
+  }
+
+  activePromptText = promptText;
+  addMessage(promptText, "user");
   const userDiv = chat.lastElementChild;
   input.value = "";
-  sendBtn.disabled = true;
+  autoResizeComposer();
 
   const assistantDiv = document.createElement("div");
   assistantDiv.className = "msg assistant";
@@ -1195,12 +1660,17 @@ async function sendMessage(text) {
   showChat(true);
 
   let fullText = "";
+  const controller = new AbortController();
+  activeStreamController = controller;
+  isStreamingResponse = true;
+  updateSendButtonState();
 
   try {
     const res = await fetch("/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, message: text }),
+      signal: controller.signal,
+      body: JSON.stringify({ session_id: sessionId, message: promptText }),
     });
 
     const reader = res.body.getReader();
@@ -1271,9 +1741,18 @@ async function sendMessage(text) {
       }
     }
   } catch (err) {
+    if (err.name === "AbortError") {
+      assistantTextDiv.textContent = "Response paused. Edit your prompt and send again.";
+      assistantTextDiv.style.opacity = "1";
+      return;
+    }
     assistantTextDiv.textContent = "Error: could not reach NOVA. " + err;
   } finally {
-    sendBtn.disabled = false;
+    if (activeStreamController === controller) {
+      activeStreamController = null;
+    }
+    isStreamingResponse = false;
+    updateSendButtonState();
   }
 }
 
@@ -1292,7 +1771,7 @@ async function loadPinned() {
     data.pinned.forEach((m) => {
       const span = document.createElement("span");
       span.textContent = m.content.slice(0, 60) + (m.content.length > 60 ? "..." : "");
-      span.style.cssText = "color:#aaa;white-space:nowrap;";
+      span.style.cssText = "color:var(--color-text-faint);white-space:nowrap;";
       pinnedItems.appendChild(span);
     });
     pinnedBar.style.display = "flex";
@@ -1475,9 +1954,13 @@ async function loadSessions() {
     const data = await res.json();
     sessionList.innerHTML = "";
 
-    const visibleSessions = showArchived
+    let visibleSessions = showArchived
       ? data.sessions.filter(s => s.archived)
       : data.sessions.filter(s => !s.archived);
+
+    if (sidebarTopicFilter !== "all") {
+      visibleSessions = visibleSessions.filter(s => (s.mode || "general") === sidebarTopicFilter);
+    }
 
     if (showArchived) {
       renderSessionGroup(visibleSessions, null);
@@ -1495,6 +1978,111 @@ async function loadSessions() {
     console.error("Could not load sessions:", err);
   }
 }
+
+const searchBtn = document.getElementById("searchBtn");
+const searchOverlay = document.getElementById("searchOverlay");
+const searchCloseBtn = document.getElementById("searchCloseBtn");
+const searchInput = document.getElementById("searchInput");
+const searchResults = document.getElementById("searchResults");
+
+function openSearchOverlay() {
+  searchOverlay.classList.add("open");
+  setTimeout(() => searchInput.focus(), 20);
+}
+
+function closeSearchOverlay() {
+  searchOverlay.classList.remove("open");
+  searchInput.value = "";
+  searchResults.innerHTML = "";
+}
+
+async function renderSearchResults(query) {
+  const q = query.trim();
+  searchResults.innerHTML = "";
+
+  if (!q) {
+    const sessionsRes = await fetch("/sessions?include_archived=true");
+    const sessionsData = await sessionsRes.json();
+    const recent = sessionsData.sessions.slice(0, 8);
+    if (!recent.length) {
+      searchResults.innerHTML = '<div class="search-empty">No conversations yet.</div>';
+      return;
+    }
+
+    for (const s of recent) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "search-result-item";
+      item.innerHTML = `
+        <div class="search-result-item-title">${escapeHtml(s.title || "Untitled chat")}</div>
+        <div class="search-result-item-snippet">${escapeHtml(s.mode === "general" ? "General" : s.mode.replace(/_/g, " "))}</div>
+      `;
+      item.addEventListener("click", () => {
+        switchSession(s.session_id);
+        closeSearchOverlay();
+      });
+      searchResults.appendChild(item);
+    }
+    return;
+  }
+
+  const sessionsRes = await fetch("/sessions?include_archived=true");
+  const sessionsData = await sessionsRes.json();
+  const needle = q.toLowerCase();
+  const matches = [];
+
+  for (const session of sessionsData.sessions) {
+    const historyRes = await fetch(`/history/${session.session_id}`);
+    if (!historyRes.ok) continue;
+
+    const historyData = await historyRes.json();
+    const haystack = [session.title, ...historyData.messages.map(m => m.content)].join("\n");
+    if (!haystack.toLowerCase().includes(needle)) continue;
+
+    const snippetSource = historyData.messages.find(m => m.content && m.content.toLowerCase().includes(needle));
+    matches.push({
+      session_id: session.session_id,
+      title: session.title || "Untitled chat",
+      snippet: snippetSource ? snippetSource.content : session.title,
+      mode: session.mode,
+    });
+  }
+
+  if (!matches.length) {
+    searchResults.innerHTML = '<div class="search-empty">No conversations match your search.</div>';
+    return;
+  }
+
+  for (const match of matches.slice(0, 20)) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "search-result-item";
+    const text = match.snippet || match.title;
+    item.innerHTML = `
+      <div class="search-result-item-title">${escapeHtml(match.title)}</div>
+      <div class="search-result-item-snippet">${escapeHtml((text || "").slice(0, 180) + ((text || "").length > 180 ? "..." : ""))}</div>
+    `;
+    item.addEventListener("click", () => {
+      switchSession(match.session_id);
+      closeSearchOverlay();
+    });
+    searchResults.appendChild(item);
+  }
+}
+
+sidebarModeFilter.addEventListener("change", () => {
+  sidebarTopicFilter = sidebarModeFilter.value || "all";
+  loadSessions();
+});
+
+searchBtn.addEventListener("click", openSearchOverlay);
+searchCloseBtn.addEventListener("click", closeSearchOverlay);
+searchOverlay.addEventListener("click", (e) => {
+  if (e.target === searchOverlay) closeSearchOverlay();
+});
+searchInput.addEventListener("input", () => {
+  renderSearchResults(searchInput.value);
+});
 
 const archivedToggleBtn = document.getElementById("archivedToggleBtn");
 const archivedRowDesc = document.getElementById("archivedRowDesc");
@@ -1514,6 +2102,8 @@ archivedToggleBtn.addEventListener("click", () => {
   loadSessions();
   closeSettings();
 });
+
+loadSidebarModeFilterOptions();
 
 async function loadModes() {
   const res = await fetch("/modes");
@@ -1584,35 +2174,9 @@ fileInput.addEventListener("change", async () => {
   const file = fileInput.files[0];
   if (!file) return;
 
-  addMessage(`Uploading "${file.name}"...`, "user");
-
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("tags", "chat-upload");
-  formData.append("confidence", "1.0");
-
-  const currentModeRes = await fetch("/sessions");
-  const sessionsData = await currentModeRes.json();
-  const current = sessionsData.sessions.find(s => s.session_id === sessionId);
-  const mode = current ? current.mode : "general";
-  formData.append("categories", mode);
-
-  try {
-    const res = await fetch("/knowledge/ingest_document", {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json();
-    addMessage(
-      `"${file.name}" processed: ${data.chunks_stored} chunks stored` +
-      (data.chunks_skipped_as_duplicate ? `, ${data.chunks_skipped_as_duplicate} skipped as duplicate` : "") +
-      `. Ask me anything about it!`,
-      "assistant"
-    );
-  } catch (err) {
-    addMessage("Error uploading file: " + err, "assistant");
-  }
-
+  pendingAttachment = file;
+  renderAttachmentPreview();
+  input.focus();
   fileInput.value = "";
 });
 
@@ -1633,6 +2197,10 @@ settingsBtn.addEventListener("click", openSettings);
 settingsCloseBtn.addEventListener("click", closeSettings);
 settingsOverlay.addEventListener("click", (e) => {
   if (e.target === settingsOverlay) closeSettings();
+});
+
+themeToggleBtn.addEventListener("click", () => {
+  applyTheme(themeMode === "dark" ? "light" : "dark");
 });
 
 const headerMenuBtn = document.getElementById("headerMenuBtn");
@@ -1669,18 +2237,57 @@ headerStarredItem.addEventListener("click", async (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && settingsOverlay.classList.contains("open")) closeSettings();
+  if (e.key === "Escape" && searchOverlay.classList.contains("open")) closeSearchOverlay();
   if (e.key === "Escape") { closeAllSessionMenus(); closeHeaderMenu(); }
 });
 
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".session-menu-wrap")) closeAllSessionMenus();
   if (!e.target.closest(".header-menu-wrap")) closeHeaderMenu();
+  if (!e.target.closest("#searchSheet") && !e.target.closest("#searchBtn")) {
+    if (searchOverlay.classList.contains("open")) closeSearchOverlay();
+  }
 });
 
 newChatBtn.addEventListener("click", startNewChat);
-sendBtn.addEventListener("click", () => sendMessage());
-input.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
-document.getElementById("sidebarToggle").addEventListener("click", () => sidebar.classList.toggle("collapsed"));
+sendBtn.addEventListener("click", () => {
+  if (isStreamingResponse) {
+    stopCurrentResponse({ restorePrompt: true });
+    return;
+  }
+  sendMessage();
+});
+input.addEventListener("input", autoResizeComposer);
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    if (isStreamingResponse) {
+      stopCurrentResponse({ restorePrompt: true });
+      return;
+    }
+    sendMessage();
+  }
+});
+
+updateSendButtonState();
+
+document.getElementById("sidebarToggle").addEventListener("click", () => {
+  sidebar.classList.toggle("collapsed");
+  syncSidebarState();
+});
+sidebarExpandBtn.addEventListener("click", () => {
+  sidebar.classList.remove("collapsed");
+  syncSidebarState();
+});
+
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 700) {
+    sidebar.classList.remove("collapsed");
+  }
+  syncSidebarState();
+});
+
+syncSidebarState();
 
 document.querySelectorAll(".example-chip").forEach(chip => {
   chip.addEventListener("click", () => sendMessage(chip.dataset.q));
