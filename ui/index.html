@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#2f6feb">
 <style>
   :root {
+    color-scheme: light;
     --color-bg: #f7f7f8;
     --color-surface: #ffffff;
     --color-surface-2: #f2f3f5;
@@ -46,6 +47,7 @@
   }
 
   body[data-theme="dark"] {
+    color-scheme: dark;
     --color-bg: #0f1115;
     --color-surface: #171a1f;
     --color-surface-2: #1d2128;
@@ -140,9 +142,11 @@
   .btn-primary {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
+    width: 38px;
     height: 38px;
-    padding: 0 18px;
+    padding: 0;
     border-radius: var(--radius-md);
     border: none;
     background: var(--color-primary);
@@ -151,11 +155,14 @@
     font-weight: 600;
     cursor: pointer;
     transition: background var(--transition-fast), opacity var(--transition-fast);
+    flex-shrink: 0;
   }
   .btn-primary svg { width: 16px; height: 16px; stroke: currentColor; }
   .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
   .btn-primary:focus-visible { outline: 2px solid var(--color-primary-hover); outline-offset: 2px; }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary.danger { background: var(--color-error); }
+  .btn-primary.danger:hover:not(:disabled) { background: var(--color-error); opacity: 0.85; }
 
   .btn-secondary {
     display: flex;
@@ -498,7 +505,7 @@
   }
   #modeSelect {
     background: var(--color-surface-2);
-    color: white;
+    color: (--color-text);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: 8px 10px;
@@ -948,7 +955,6 @@
       </button>
       <textarea id="messageInput" rows="1" placeholder="Ask NOVA..." autocomplete="off"></textarea>
       <button id="sendBtn" class="btn-primary" aria-label="Send message">
-        Send
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4 13 20l-2-7-7-1z"/></svg>
       </button>
     </div>
@@ -1333,7 +1339,7 @@ function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId, i
       promptDiv.style.marginTop = "8px";
       const btn = document.createElement("button");
       btn.textContent = "Move to General chat";
-      btn.style.cssText = "font-size:0.8em;padding:4px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface-hover);color:#ccc;cursor:pointer;";
+      btn.style.cssText = "font-size:0.8em;padding:4px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface-hover);color:var(--color-text-muted);cursor:pointer;";
       btn.addEventListener("click", async () => {
         await fetch("/sessions/move_message", {
           method: "POST",
@@ -1376,7 +1382,7 @@ async function loadCurrentSessionFiles() {
 
     if (!data.files.length) {
       const empty = document.createElement("div");
-      empty.style.cssText = "color:#666;margin-top:10px;";
+      empty.style.cssText = "color:var(--color-text-faint);margin-top:10px;";
       empty.textContent = "No files uploaded to this chat yet.";
       filesBody.appendChild(empty);
       return;
@@ -1405,12 +1411,12 @@ async function loadDashboard() {
   dashboardBody.appendChild(totalDiv);
 
   const totalLabel = document.createElement("div");
-  totalLabel.style.cssText = "font-size:0.8em;color:#888;margin-bottom:16px;";
+  totalLabel.style.cssText = "font-size:0.8em;color:(--color-text-faint);margin-bottom:16px;";
   totalLabel.textContent = "things NOVA has learned";
   dashboardBody.appendChild(totalLabel);
 
   const confDiv = document.createElement("div");
-  confDiv.style.cssText = "font-size:0.85em;color:#ccc;margin-bottom:16px;";
+  confDiv.style.cssText = "font-size:0.85em;color:--color-text-muted);margin-bottom:16px;";
   const confPct = stats.average_confidence * 100;
   const confLabel = confPct >= 85 ? "Very confident" : confPct >= 65 ? "Fairly confident" : "Still learning";
   confDiv.textContent = `How sure NOVA is about what it knows: ${confLabel}`;
@@ -1501,7 +1507,7 @@ function renderStarredPanel() {
   const modes = Object.keys(starredData);
   if (!modes.length) {
     const empty = document.createElement("div");
-    empty.style.cssText = "color:#666;margin-top:10px;";
+    empty.style.cssText = "color:var(--color-text-faint);margin-top:10px;";
     empty.textContent = "Nothing starred yet.";
     starredBody.appendChild(empty);
     return;
@@ -1583,12 +1589,14 @@ attachmentClear.addEventListener("click", () => {
 
 function updateSendButtonState() {
   if (isStreamingResponse) {
-    sendBtn.innerHTML = `Stop <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10H7z"/></svg>`;
+    sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10H7z"/></svg>`;
     sendBtn.setAttribute("aria-label", "Stop current response");
+    sendBtn.title = "Stop current response";
     sendBtn.classList.add("danger");
   } else {
-    sendBtn.innerHTML = `Send <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4 13 20l-2-7-7-1z"/></svg>`;
+    sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4 13 20l-2-7-7-1z"/></svg>`;
     sendBtn.setAttribute("aria-label", "Send message");
+    sendBtn.title = "Send message";
     sendBtn.classList.remove("danger");
   }
 }
@@ -1617,7 +1625,8 @@ async function sendMessage(text) {
 
   const fileToUpload = pendingAttachment;
   const promptText = text || (fileToUpload ? "Please summarize or explain this file." : "");
-  if (!promptText) return;
+if (!promptText) return;
+text = promptText;
 
   if (fileToUpload) {
     pendingAttachment = null;
@@ -2080,8 +2089,11 @@ searchCloseBtn.addEventListener("click", closeSearchOverlay);
 searchOverlay.addEventListener("click", (e) => {
   if (e.target === searchOverlay) closeSearchOverlay();
 });
+let searchDebounceHandle = null;
 searchInput.addEventListener("input", () => {
-  renderSearchResults(searchInput.value);
+  clearTimeout(searchDebounceHandle);
+  const value = searchInput.value;
+  searchDebounceHandle = setTimeout(() => renderSearchResults(value), 250);
 });
 
 const archivedToggleBtn = document.getElementById("archivedToggleBtn");
