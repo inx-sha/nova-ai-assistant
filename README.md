@@ -6,7 +6,7 @@ Still in progress. This README covers what's actually built so far.
 
 ## Built and working
 
-- Local chat via Ollama (Qwen2.5-3B)
+- Local chat via Ollama (Qwen3.5)
 - RAG pipeline: chunk text → embed (nomic-embed-text) → store in ChromaDB → retrieve by similarity
 - Router uses the similarity score to decide confidence, not the LLM's own opinion — small models will confidently answer even when retrieval is weak, so the actual number decides, not the model
 - Falls back to web search when local knowledge isn't enough. Pulls from multiple sources, cross-checks them, and generates a confidence score based on how much they agree
@@ -48,7 +48,7 @@ nova/
 ## Setup
 
 ```bash
-ollama pull qwen2.5:3b-instruct-q4_K_M
+ollama pull qwen3.5:latest
 ollama pull nomic-embed-text
 
 python -m venv venv

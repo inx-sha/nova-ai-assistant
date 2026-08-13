@@ -77,13 +77,14 @@ def start_scheduler() -> None:
     if _scheduler is not None:
         return  # already running, don't start twice
 
+    now = datetime.now()
     _scheduler = BackgroundScheduler()
     _scheduler.add_job(
         refresh_stale_pack_topics,
         "interval",
         hours=REFRESH_INTERVAL_HOURS,
         id="refresh_pack_topics",
-        next_run_time=None,  # don't fire immediately on startup
+        next_run_time=now + timedelta(hours=REFRESH_INTERVAL_HOURS),
     )
 
     _scheduler.add_job(
@@ -91,7 +92,7 @@ def start_scheduler() -> None:
         "interval",
         hours=24,
         id="daily_backup",
-        next_run_time=None,
+        next_run_time=now + timedelta(hours=24),
     )
     
     _scheduler.start()

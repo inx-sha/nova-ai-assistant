@@ -269,6 +269,115 @@
   .session-action:hover { background: var(--color-surface); color: var(--color-text); }
   .session-action.delete:hover { color: var(--color-error); }
 
+  .session-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 4px;
+    position: relative;
+  }
+  .session-group-header .session-group-label {
+    padding: 0;
+  }
+  .session-group-sort-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .session-group-filter-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-faint);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  }
+  .session-group-filter-btn svg {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+  }
+  .session-group-filter-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+  .session-group-filter-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+  }
+  .session-group-filter-btn.active-filter {
+    color: var(--color-info);
+    border-color: var(--color-border);
+    background: var(--color-surface-2);
+  }
+  .session-group-filter-btn.menu-open {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+  .recent-sort-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 165px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    z-index: 25;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+  .recent-sort-dropdown.open {
+    display: block;
+  }
+  .recent-sort-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 10px;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font-size: 0.82em;
+    text-align: left;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+  .recent-sort-item:hover {
+    background: var(--color-surface-hover);
+  }
+  .recent-sort-item:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+  .recent-sort-item svg.sort-check {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+    color: var(--color-success);
+    opacity: 0;
+    flex-shrink: 0;
+  }
+  .recent-sort-item.selected {
+    font-weight: 600;
+  }
+  .recent-sort-item.selected svg.sort-check {
+    opacity: 1;
+  }
+  .recent-sort-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 4px 2px;
+  }
+
   .session-group-label {
     padding: 10px 12px 4px;
     font-size: 0.7em;
@@ -592,6 +701,78 @@
   }
   .user { align-self: flex-end; background: var(--color-surface-2); }
   .assistant { align-self: flex-start; background: var(--color-surface); }
+
+  .msg-attachment-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 5px 10px 5px 6px;
+    margin-bottom: 6px;
+    max-width: 250px;
+    width: fit-content;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--transition-fast), border-color var(--transition-fast), transform 80ms ease;
+  }
+  .msg-attachment-chip:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-primary);
+  }
+  .msg-attachment-chip:active {
+    transform: scale(0.98);
+  }
+  .msg-attachment-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--color-surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+  }
+  .msg-attachment-icon svg { width: 15px; height: 15px; stroke: currentColor; }
+  .msg-attachment-icon.pdf {
+    background: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
+  }
+  .msg-attachment-icon.word {
+    background: rgba(37, 99, 235, 0.12);
+    color: #2563eb;
+  }
+  .msg-attachment-icon.code {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+  }
+  .msg-attachment-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+  }
+  .msg-attachment-name {
+    font-size: 0.82em;
+    font-weight: 500;
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 170px;
+    display: block;
+  }
+  .msg-attachment-ext {
+    font-size: 0.68em;
+    color: var(--color-text-faint);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    display: block;
+    margin-top: 1px;
+  }
   .meta {
     font-size: 0.72em;
     opacity: 0.65;
@@ -629,6 +810,98 @@
   .md-content blockquote { border-left: 3px solid var(--color-border); margin: 0.5em 0; padding-left: 10px; color: var(--color-text-muted); }
   .md-content a { color: var(--color-info); text-decoration: underline; }
   .md-content strong { font-weight: 700; }
+
+  .msg.assistant:has(.thinking-target) {
+    padding: 6px 10px;
+    background: transparent;
+    border-color: transparent;
+  }
+  .thinking-target {
+    display: inline-flex;
+    align-items: center;
+  }
+  .thinking-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-faint);
+    font-size: 0.82em;
+    font-weight: 400;
+    padding: 0;
+    user-select: none;
+  }
+  .thinking-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .thinking-dots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+    opacity: 0.35;
+    animation: thinkingDotPulse 1.2s infinite ease-in-out both;
+  }
+  .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+  .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0s; }
+
+  @keyframes thinkingDotPulse {
+    0%, 80%, 100% { transform: scale(0.7); opacity: 0.3; }
+    40% { transform: scale(1.2); opacity: 0.95; }
+  }
+
+  .paused-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--color-surface-2);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+  }
+  .paused-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88em;
+    color: var(--color-text-muted);
+  }
+  .paused-header svg {
+    width: 15px;
+    height: 15px;
+    stroke: var(--color-warning);
+    flex-shrink: 0;
+  }
+  .paused-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .paused-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+  }
+  .paused-edit-btn:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-primary);
+  }
+  .paused-edit-btn svg {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+  }
 
   #inputBar {
     display: flex;
@@ -684,6 +957,46 @@
   }
   #attachmentClear:hover { background: var(--color-border); color: var(--color-text); }
 
+  #editingBanner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.82em;
+    color: var(--color-text);
+  }
+  #editingBanner.visible { display: flex; }
+  .editing-banner-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .editing-banner-label svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    color: var(--color-info);
+  }
+  #cancelEditBtn {
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.88em;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+  #cancelEditBtn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+
   #composerRow {
     display: flex;
     gap: 8px;
@@ -719,7 +1032,102 @@
     display: inline-flex;
   }
 
-  #dashboardPanel, #starredPanel, #filesPanel {
+  #dashboardOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.52);
+    z-index: 50;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #dashboardOverlay.open { display: flex; }
+
+  #filePreviewOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 60;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #filePreviewOverlay.open { display: flex; }
+  #filePreviewModal {
+    width: min(720px, 100%);
+    max-height: min(780px, calc(100vh - 48px));
+    height: 80vh;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+  }
+  .file-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .file-preview-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .file-preview-title {
+    font-size: 1.05em;
+    font-weight: 700;
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  #filePreviewBody {
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 14px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    font-size: 0.9em;
+    line-height: 1.6;
+    color: var(--color-text);
+    white-space: pre-wrap;
+    font-family: inherit;
+  }
+  #dashboardModal {
+    width: min(540px, 100%);
+    max-height: min(650px, calc(100vh - 48px));
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.38);
+    display: flex;
+    flex-direction: column;
+  }
+  #dashboardBody {
+    overflow-y: auto;
+    flex: 1;
+    margin-top: 8px;
+    padding-right: 4px;
+  }
+
+  #starredPanel, #filesPanel {
     display: none;
     position: absolute;
     top: 60px;
@@ -728,17 +1136,178 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     z-index: 20;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
   }
-  #dashboardPanel { width: 360px; max-height: 500px; overflow-y: auto; padding: 16px; }
   #starredPanel { width: 320px; max-height: 400px; overflow-y: auto; padding: 12px; }
-  #filesPanel { width: 340px; max-height: 420px; overflow-y: auto; padding: 12px; }
+  #filesPanel {
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    max-height: 480px;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 14px;
+  }
+  .files-scope-tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--color-surface);
+    padding: 3px;
+    border-radius: var(--radius-md);
+    margin: 8px 0;
+    border: 1px solid var(--color-border);
+  }
+  .files-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.82em;
+    font-weight: 600;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    text-align: center;
+  }
+  .files-tab-btn.active {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+  .files-filter-input {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.84em;
+    box-sizing: border-box;
+  }
+  .files-filter-input:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+  }
+  #filesBody {
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 2px;
+  }
+  .file-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+  }
+  .file-row:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-primary-soft);
+  }
+  .file-row-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-info);
+    margin-top: 1px;
+  }
+  .file-row-icon svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+  }
+  .file-row-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .file-row-name {
+    font-size: 0.86em;
+    font-weight: 600;
+    color: var(--color-text);
+    word-break: break-word;
+    line-height: 1.3;
+  }
+  .file-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+  }
+  .file-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 0.72em;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+  .file-badge.badge-type {
+    background: var(--color-info-soft);
+    color: var(--color-info);
+  }
+  .file-badge.badge-cat {
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+  }
+  .file-badge.badge-chunks {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+  }
+  .file-date {
+    font-size: 0.72em;
+    color: var(--color-text-faint);
+    margin-left: auto;
+  }
   .panel-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
     font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .panel-header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .panel-header svg { width: 16px; height: 16px; stroke: currentColor; }
+  .panel-close-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: var(--color-surface-hover);
+    color: var(--color-text-muted);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    flex-shrink: 0;
+  }
+  .panel-close-btn:hover {
+    background: var(--color-border);
+    color: var(--color-text);
+  }
 
   #pinnedBar {
     display: none;
@@ -871,6 +1440,46 @@
   </div>
 </div>
 
+<div id="dashboardOverlay">
+  <div id="dashboardModal" role="dialog" aria-modal="true" aria-label="Knowledge Dashboard">
+    <div class="settings-modal-header">
+      <div class="panel-header-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;color:var(--color-info);"><line x1="5" y1="20" x2="5" y2="11"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="19" y1="20" x2="19" y2="14"/></svg>
+        <strong style="font-size:1.05em;">Knowledge Dashboard</strong>
+      </div>
+      <button id="dashboardCloseBtn" class="icon-btn" aria-label="Close dashboard" title="Close dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="dashboardBody"></div>
+  </div>
+</div>
+
+<div id="filePreviewOverlay">
+  <div id="filePreviewModal" role="dialog" aria-modal="true" aria-label="File preview">
+    <div class="file-preview-header">
+      <div class="file-preview-title-wrap">
+        <span id="filePreviewIcon" style="display:flex;align-items:center;color:var(--color-info);"></span>
+        <span id="filePreviewTitle" class="file-preview-title">Document</span>
+      </div>
+      <div class="file-preview-actions">
+        <a id="filePreviewRawBtn" class="icon-btn" target="_blank" title="Open in new tab" aria-label="Open in new tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+        <a id="filePreviewDownloadBtn" class="icon-btn" title="Download file" aria-label="Download file" download>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
+        <button id="filePreviewCloseBtn" class="icon-btn" title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="filePreviewContainer" style="flex:1;overflow:hidden;display:flex;flex-direction:column;margin-top:10px;">
+      <div id="filePreviewBody"></div>
+    </div>
+  </div>
+</div>
+
 <div id="main">
   <header>
     <button id="sidebarToggle" class="icon-btn" aria-label="Toggle sidebar" title="Toggle sidebar">
@@ -905,22 +1514,26 @@
   </header>
   <div id="filesPanel">
     <div class="panel-header">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
-      Files in this chat
+      <div class="panel-header-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+        <span>Uploaded files</span>
+      </div>
+      <button class="panel-close-btn" type="button" aria-label="Close files panel" title="Close">×</button>
     </div>
+    <div class="files-scope-tabs">
+      <button type="button" id="filesTabChat" class="files-tab-btn active">This chat (<span id="filesChatCount">0</span>)</button>
+      <button type="button" id="filesTabAll" class="files-tab-btn">All files (<span id="filesAllCount">0</span>)</button>
+    </div>
+    <input id="filesFilterInput" class="files-filter-input" type="text" placeholder="Filter files..." autocomplete="off" />
     <div id="filesBody"></div>
-  </div>
-  <div id="dashboardPanel">
-    <div class="panel-header">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="11"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="19" y1="20" x2="19" y2="14"/></svg>
-      Knowledge Dashboard
-    </div>
-    <div id="dashboardBody"></div>
   </div>
   <div id="starredPanel">
     <div class="panel-header">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3l2.7 5.9 6.3.6-4.8 4.3 1.4 6.2L12 16.9 6.4 20l1.4-6.2L3 9.5l6.3-.6L12 3z"/></svg>
-      Starred messages
+      <div class="panel-header-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3l2.7 5.9 6.3.6-4.8 4.3 1.4 6.2L12 16.9 6.4 20l1.4-6.2L3 9.5l6.3-.6L12 3z"/></svg>
+        <span>Starred messages</span>
+      </div>
+      <button class="panel-close-btn" type="button" aria-label="Close starred messages panel" title="Close">×</button>
     </div>
     <div id="starredBody"></div>
   </div>
@@ -940,6 +1553,13 @@
   </div>
 
   <div id="inputBar">
+    <div id="editingBanner" aria-live="polite">
+      <div class="editing-banner-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span>Editing message</span>
+      </div>
+      <button id="cancelEditBtn" type="button" aria-label="Cancel editing">Cancel</button>
+    </div>
     <div id="attachmentPreview" aria-live="polite">
       <svg class="attachment-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
       <span id="attachmentName">No file selected</span>
@@ -981,6 +1601,7 @@ const ICONS = {
   star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3l2.7 5.9 6.3.6-4.8 4.3 1.4 6.2L12 16.9 6.4 20l1.4-6.2L3 9.5l6.3-.6L12 3z"/></svg>',
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
   more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="18" r="1.2"/></svg>',
+  filter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
 };
 
 function escapeHtml(str) {
@@ -1070,6 +1691,31 @@ const starredPanel = document.getElementById("starredPanel");
 const starredBody = document.getElementById("starredBody");
 const fileInput = document.getElementById("fileInput");
 const attachBtn = document.getElementById("attachBtn");
+const editingBanner = document.getElementById("editingBanner");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
+let editingMessageId = null;
+
+function startEditingMessage(msgId, text) {
+  editingMessageId = msgId;
+  input.value = text;
+  autoResizeComposer();
+  if (editingBanner) editingBanner.classList.add("visible");
+  input.placeholder = "Edit your message and press Enter to retry...";
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+function cancelEditing() {
+  editingMessageId = null;
+  if (editingBanner) editingBanner.classList.remove("visible");
+  input.placeholder = "Ask NOVA...";
+  input.value = "";
+  autoResizeComposer();
+}
+
+if (cancelEditBtn) {
+  cancelEditBtn.addEventListener("click", cancelEditing);
+}
 
 let voiceEnabled = localStorage.getItem("nova_voice_enabled") === "true";
 let themeMode = localStorage.getItem("nova_theme") || "light";
@@ -1132,6 +1778,7 @@ headerVoiceItem.addEventListener("click", (e) => {
   localStorage.setItem("nova_voice_enabled", voiceEnabled);
   updateHeaderVoiceItem();
   if (!voiceEnabled) speechSynthesis.cancel();
+  closeHeaderMenu();
 });
 
 const backupBtn = document.getElementById("backupBtn");
@@ -1289,23 +1936,42 @@ function attachActions(div, role, text, userMsgId, assistantMsgId, initialPinned
   actions.appendChild(starBtn);
 
   if (role === "user") {
-    actions.appendChild(mkIconBtn(ICONS.edit, "Edit & retry", async () => {
-      const newText = prompt("Edit your message:", text);
-      if (!newText || newText === text) return;
-      await fetch("/chat/retry", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, message_id: msgId, new_message: newText }),
-      });
-      loadHistory(sessionId);
+    actions.appendChild(mkIconBtn(ICONS.edit, "Edit message", () => {
+      startEditingMessage(msgId, text);
     }));
   }
 
   div.appendChild(actions);
 }
 
-function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId, initialPinned, initialStarred) {
+function getFileTypeInfo(filename) {
+  const lower = (filename || "").toLowerCase();
+  if (lower.endsWith(".pdf")) return { type: "PDF", cls: "pdf" };
+  if (lower.endsWith(".docx") || lower.endsWith(".doc")) return { type: "Word", cls: "word" };
+  if (lower.endsWith(".txt") || lower.endsWith(".md")) return { type: "Text", cls: "code" };
+  const ext = lower.includes(".") ? lower.split(".").pop().toUpperCase() : "Document";
+  return { type: ext, cls: "file" };
+}
+
+function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId, initialPinned, initialStarred, attachment) {
   const div = document.createElement("div");
   div.className = "msg " + role;
+
+  if (role === "user" && attachment) {
+    const fileInfo = getFileTypeInfo(attachment);
+    const chip = document.createElement("div");
+    chip.className = "msg-attachment-chip";
+    chip.title = `Click to view ${attachment}`;
+    chip.innerHTML = `
+      <div class="msg-attachment-icon ${fileInfo.cls}">${getFileIcon(attachment)}</div>
+      <div class="msg-attachment-info">
+        <span class="msg-attachment-name" title="${escapeHtml(attachment)}">${escapeHtml(attachment)}</span>
+        <span class="msg-attachment-ext">${escapeHtml(fileInfo.type)}</span>
+      </div>
+    `;
+    chip.addEventListener("click", () => openFilePreview(attachment));
+    div.appendChild(chip);
+  }
 
   const textDiv = document.createElement("div");
   if (role === "assistant") {
@@ -1369,33 +2035,179 @@ function addMessage(text, role, meta, userQuestion, userMsgId, assistantMsgId, i
   showChat(true);
 }
 
-const dashboardPanel = document.getElementById("dashboardPanel");
+const dashboardOverlay = document.getElementById("dashboardOverlay");
+const dashboardCloseBtn = document.getElementById("dashboardCloseBtn");
 const dashboardBody = document.getElementById("dashboardBody");
 const filesPanel = document.getElementById("filesPanel");
 const filesBody = document.getElementById("filesBody");
+const filesTabChat = document.getElementById("filesTabChat");
+const filesTabAll = document.getElementById("filesTabAll");
+const filesFilterInput = document.getElementById("filesFilterInput");
+
+let currentFilesScope = "chat";
+let sessionFilesCache = [];
+let allFilesCache = [];
+
+function getFileIcon(filename) {
+  const lower = (filename || "").toLowerCase();
+  if (lower.endsWith(".pdf")) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`;
+  }
+  if (lower.endsWith(".docx") || lower.endsWith(".doc")) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>`;
+  }
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
+}
+
+const filePreviewOverlay = document.getElementById("filePreviewOverlay");
+const filePreviewTitle = document.getElementById("filePreviewTitle");
+const filePreviewIcon = document.getElementById("filePreviewIcon");
+const filePreviewRawBtn = document.getElementById("filePreviewRawBtn");
+const filePreviewDownloadBtn = document.getElementById("filePreviewDownloadBtn");
+const filePreviewCloseBtn = document.getElementById("filePreviewCloseBtn");
+const filePreviewBody = document.getElementById("filePreviewBody");
+
+async function openFilePreview(filename) {
+  if (!filename) return;
+  filePreviewTitle.textContent = filename;
+  filePreviewIcon.innerHTML = getFileIcon(filename);
+  filePreviewRawBtn.href = `/files/raw/${encodeURIComponent(filename)}`;
+  filePreviewDownloadBtn.href = `/files/download/${encodeURIComponent(filename)}`;
+  filePreviewBody.textContent = "Loading file content...";
+  filePreviewOverlay.classList.add("open");
+
+  try {
+    const res = await fetch(`/files/content/${encodeURIComponent(filename)}`);
+    if (!res.ok) throw new Error("Could not load file");
+    const data = await res.json();
+    if (data.content && data.content.trim()) {
+      filePreviewBody.textContent = data.content;
+    } else if (data.has_raw_file && (filename.toLowerCase().endsWith(".pdf"))) {
+      filePreviewBody.innerHTML = `<div style="text-align:center;padding:40px 20px;"><div style="font-weight:600;margin-bottom:12px;">PDF Document: ${escapeHtml(filename)}</div><a href="/files/raw/${encodeURIComponent(filename)}" target="_blank" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;text-decoration:none;">Open PDF in new tab</a></div>`;
+    } else {
+      filePreviewBody.textContent = "Document is ready. Click 'Open in new tab' or 'Download' above to view the full original file.";
+    }
+  } catch (err) {
+    filePreviewBody.textContent = `Unable to fetch preview. Click 'Open in new tab' or 'Download' above to access the file.`;
+  }
+}
+
+function closeFilePreview() {
+  filePreviewOverlay.classList.remove("open");
+}
+
+if (filePreviewCloseBtn) filePreviewCloseBtn.addEventListener("click", closeFilePreview);
+if (filePreviewOverlay) {
+  filePreviewOverlay.addEventListener("click", (e) => {
+    if (e.target === filePreviewOverlay) closeFilePreview();
+  });
+}
+
+function renderFilesList() {
+  const filterText = (filesFilterInput.value || "").trim().toLowerCase();
+  const list = currentFilesScope === "chat" ? sessionFilesCache : allFilesCache;
+  const filtered = filterText
+    ? list.filter(f => (f.filename || "").toLowerCase().includes(filterText) || (f.doc_type || "").toLowerCase().includes(filterText) || (f.categories || "").toLowerCase().includes(filterText))
+    : list;
+
+  filesBody.innerHTML = "";
+
+  if (!filtered.length) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "color:var(--color-text-faint);text-align:center;padding:24px 12px;font-size:0.88em;";
+    if (filterText) {
+      empty.textContent = "No files match your search.";
+    } else if (currentFilesScope === "chat") {
+      empty.innerHTML = `<div>No files uploaded in this chat.</div><button type="button" id="switchToAllFilesBtn" style="margin-top:10px;background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-primary);font-size:0.85em;padding:6px 12px;border-radius:6px;cursor:pointer;">View all ${allFilesCache.length} uploaded files</button>`;
+      filesBody.appendChild(empty);
+      const switchBtn = document.getElementById("switchToAllFilesBtn");
+      if (switchBtn) {
+        switchBtn.addEventListener("click", () => {
+          setFilesScope("all");
+        });
+      }
+      return;
+    } else {
+      empty.textContent = "No files uploaded to Nova yet.";
+    }
+    filesBody.appendChild(empty);
+    return;
+  }
+
+  for (const file of filtered) {
+    const row = document.createElement("div");
+    row.className = "file-row";
+    row.style.cursor = "pointer";
+    const dateFormatted = file.date_collected
+      ? new Date(file.date_collected).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : (file.created_at ? new Date(file.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "");
+
+    const chunksLabel = file.chunk_count ? `<span class="file-badge badge-chunks">${file.chunk_count} chunk${file.chunk_count === 1 ? '' : 's'}</span>` : '';
+    const typeLabel = file.doc_type ? `<span class="file-badge badge-type">${escapeHtml(file.doc_type.replace(/_/g, ' '))}</span>` : '';
+    const catLabel = file.categories ? `<span class="file-badge badge-cat">${escapeHtml(file.categories.replace(/_/g, ' '))}</span>` : '';
+    const dateSpan = dateFormatted ? `<span class="file-date">${dateFormatted}</span>` : '';
+
+    row.innerHTML = `
+      <div class="file-row-icon">${getFileIcon(file.filename)}</div>
+      <div class="file-row-content">
+        <div class="file-row-name" title="${escapeHtml(file.filename || '')}">${escapeHtml(file.filename || 'Untitled document')}</div>
+        <div class="file-row-meta">
+          ${typeLabel}
+          ${catLabel}
+          ${chunksLabel}
+          ${dateSpan}
+        </div>
+      </div>
+      <div class="msg-attachment-actions" style="margin-left:auto;">
+        <a class="msg-attachment-btn" href="/files/raw/${encodeURIComponent(file.filename)}" target="_blank" title="Open in new tab" onclick="event.stopPropagation();">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+        <a class="msg-attachment-btn" href="/files/download/${encodeURIComponent(file.filename)}" title="Download file" onclick="event.stopPropagation();" download>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
+      </div>
+    `;
+    row.addEventListener("click", () => openFilePreview(file.filename));
+    filesBody.appendChild(row);
+  }
+}
+
+function setFilesScope(scope) {
+  currentFilesScope = scope;
+  filesTabChat.classList.toggle("active", scope === "chat");
+  filesTabAll.classList.toggle("active", scope === "all");
+  renderFilesList();
+}
+
+if (filesTabChat) filesTabChat.addEventListener("click", () => setFilesScope("chat"));
+if (filesTabAll) filesTabAll.addEventListener("click", () => setFilesScope("all"));
+if (filesFilterInput) filesFilterInput.addEventListener("input", renderFilesList);
 
 async function loadCurrentSessionFiles() {
   try {
     const res = await fetch(`/sessions/${sessionId}/files`);
     const data = await res.json();
-    filesBody.innerHTML = "";
+    sessionFilesCache = data.session_files || data.files || [];
+    allFilesCache = data.all_files || [];
 
-    if (!data.files.length) {
-      const empty = document.createElement("div");
-      empty.style.cssText = "color:var(--color-text-faint);margin-top:10px;";
-      empty.textContent = "No files uploaded to this chat yet.";
-      filesBody.appendChild(empty);
-      return;
+    const chatCountEl = document.getElementById("filesChatCount");
+    const allCountEl = document.getElementById("filesAllCount");
+    if (chatCountEl) chatCountEl.textContent = sessionFilesCache.length;
+    if (allCountEl) allCountEl.textContent = allFilesCache.length;
+
+    if (!sessionFilesCache.length && allFilesCache.length) {
+      currentFilesScope = "all";
+      filesTabChat.classList.remove("active");
+      filesTabAll.classList.add("active");
+    } else {
+      filesTabChat.classList.toggle("active", currentFilesScope === "chat");
+      filesTabAll.classList.toggle("active", currentFilesScope === "all");
     }
 
-    for (const file of data.files) {
-      const row = document.createElement("div");
-      row.style.cssText = "padding:8px 6px;border-bottom:1px solid var(--color-border);font-size:0.85em;color:#ccc;";
-      row.innerHTML = `<div style="font-weight:600;color:var(--color-text);">${escapeHtml(file.filename)}</div><div style="color:var(--color-text-faint);margin-top:4px;">${escapeHtml(file.doc_type || "general")}${file.categories ? ` • ${escapeHtml(file.categories)}` : ""}</div>`;
-      filesBody.appendChild(row);
-    }
+    renderFilesList();
   } catch (err) {
-    filesBody.innerHTML = '<div style="color:#666;margin-top:10px;">Unable to load files for this chat.</div>';
+    console.error("Could not load files:", err);
+    filesBody.innerHTML = '<div style="color:var(--color-text-faint);padding:12px;text-align:center;">Unable to load files.</div>';
   }
 }
 
@@ -1406,17 +2218,17 @@ async function loadDashboard() {
   dashboardBody.innerHTML = "";
 
   const totalDiv = document.createElement("div");
-  totalDiv.style.cssText = "font-size:1.8em;font-weight:700;margin:12px 0 4px;color:var(--color-success);";
+  totalDiv.style.cssText = "font-size:2em;font-weight:700;margin:6px 0 2px;color:var(--color-success);";
   totalDiv.textContent = stats.total_chunks;
   dashboardBody.appendChild(totalDiv);
 
   const totalLabel = document.createElement("div");
-  totalLabel.style.cssText = "font-size:0.8em;color:(--color-text-faint);margin-bottom:16px;";
+  totalLabel.style.cssText = "font-size:0.85em;color:var(--color-text-faint);margin-bottom:14px;";
   totalLabel.textContent = "things NOVA has learned";
   dashboardBody.appendChild(totalLabel);
 
   const confDiv = document.createElement("div");
-  confDiv.style.cssText = "font-size:0.85em;color:--color-text-muted);margin-bottom:16px;";
+  confDiv.style.cssText = "font-size:0.88em;color:var(--color-text-muted);margin-bottom:14px;padding:8px 12px;background:var(--color-surface-2);border-radius:var(--radius-md);border:1px solid var(--color-border);";
   const confPct = stats.average_confidence * 100;
   const confLabel = confPct >= 85 ? "Very confident" : confPct >= 65 ? "Fairly confident" : "Still learning";
   confDiv.textContent = `How sure NOVA is about what it knows: ${confLabel}`;
@@ -1424,35 +2236,35 @@ async function loadDashboard() {
 
   const tierLabels = { cache: "Recently learned", pinned: "Saved by you", pack: "Core knowledge" };
   const tierHeading = document.createElement("div");
-  tierHeading.style.cssText = "font-weight:600;color:var(--color-info);margin-top:10px;";
+  tierHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-info);margin-top:12px;margin-bottom:6px;";
   tierHeading.textContent = "What kind of knowledge";
   dashboardBody.appendChild(tierHeading);
   for (const [tier, count] of Object.entries(stats.by_tier)) {
     const row = document.createElement("div");
-    row.style.cssText = "font-size:0.82em;color:#ccc;display:flex;justify-content:space-between;padding:3px 0;";
-    row.innerHTML = `<span>${tierLabels[tier] || tier}</span><span>${count}</span>`;
+    row.style.cssText = "font-size:0.85em;color:var(--color-text);display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--color-border);";
+    row.innerHTML = `<span>${tierLabels[tier] || tier}</span><span style="font-weight:600;">${count}</span>`;
     dashboardBody.appendChild(row);
   }
 
   const catHeading = document.createElement("div");
-  catHeading.style.cssText = "font-weight:600;color:var(--color-info);margin-top:12px;";
+  catHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-info);margin-top:14px;margin-bottom:6px;";
   catHeading.textContent = "By category";
   dashboardBody.appendChild(catHeading);
   const sortedCats = Object.entries(stats.by_category).sort((a, b) => b[1] - a[1]);
   for (const [cat, count] of sortedCats) {
     const row = document.createElement("div");
-    row.style.cssText = "font-size:0.82em;color:#ccc;display:flex;justify-content:space-between;padding:3px 0;";
-    row.innerHTML = `<span>${cat.replace(/_/g, " ")}</span><span>${count}</span>`;
+    row.style.cssText = "font-size:0.85em;color:var(--color-text);display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--color-border);";
+    row.innerHTML = `<span>${cat.replace(/_/g, " ")}</span><span style="font-weight:600;">${count}</span>`;
     dashboardBody.appendChild(row);
   }
 
   const growthHeading = document.createElement("div");
-  growthHeading.style.cssText = "font-weight:600;color:var(--color-info);margin-top:12px;";
+  growthHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-info);margin-top:14px;margin-bottom:6px;";
   growthHeading.textContent = "Learning activity this week";
   dashboardBody.appendChild(growthHeading);
 
   const chartDiv = document.createElement("div");
-  chartDiv.style.cssText = "display:flex;align-items:flex-end;gap:4px;height:60px;margin-top:8px;";
+  chartDiv.style.cssText = "display:flex;align-items:flex-end;gap:5px;height:65px;margin-top:8px;padding:8px;background:var(--color-surface-2);border-radius:var(--radius-md);border:1px solid var(--color-border);";
   const growthEntries = Object.entries(stats.growth_last_14_days);
   const maxCount = Math.max(...growthEntries.map(([, c]) => c), 1);
   for (const [day, count] of growthEntries) {
@@ -1466,16 +2278,29 @@ async function loadDashboard() {
   dashboardBody.appendChild(chartDiv);
 }
 
-document.getElementById("dashboardBtn").addEventListener("click", async () => {
-  const isVisible = dashboardPanel.style.display === "block";
-  if (isVisible) {
-    dashboardPanel.style.display = "none";
-  } else {
-    dashboardPanel.style.display = "block";
-    starredPanel.style.display = "none";
-    filesPanel.style.display = "none";
-    await loadDashboard();
-  }
+function closeAllPanels() {
+  filesPanel.style.display = "none";
+  starredPanel.style.display = "none";
+}
+
+async function openDashboard() {
+  closeSettings();
+  closeAllPanels();
+  dashboardOverlay.classList.add("open");
+  await loadDashboard();
+  if (dashboardCloseBtn) dashboardCloseBtn.focus();
+}
+
+function closeDashboard() {
+  dashboardOverlay.classList.remove("open");
+}
+
+document.getElementById("dashboardBtn").addEventListener("click", openDashboard);
+if (dashboardCloseBtn) {
+  dashboardCloseBtn.addEventListener("click", closeDashboard);
+}
+dashboardOverlay.addEventListener("click", (e) => {
+  if (e.target === dashboardOverlay) closeDashboard();
 });
 
 const headerFilesItem = document.getElementById("headerFilesItem");
@@ -1483,11 +2308,8 @@ headerFilesItem.addEventListener("click", async (e) => {
   e.stopPropagation();
   closeHeaderMenu();
   const isVisible = filesPanel.style.display === "block";
-  if (isVisible) {
-    filesPanel.style.display = "none";
-  } else {
-    dashboardPanel.style.display = "none";
-    starredPanel.style.display = "none";
+  closeAllPanels();
+  if (!isVisible) {
     filesPanel.style.display = "block";
     await loadCurrentSessionFiles();
   }
@@ -1563,6 +2385,8 @@ function renderStarredResults(filterMode) {
 
 let activeStreamController = null;
 let activePromptText = "";
+let activePromptAttachment = null;
+let activeAssistantDiv = null;
 let isStreamingResponse = false;
 let pendingAttachment = null;
 
@@ -1589,9 +2413,9 @@ attachmentClear.addEventListener("click", () => {
 
 function updateSendButtonState() {
   if (isStreamingResponse) {
-    sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10H7z"/></svg>`;
-    sendBtn.setAttribute("aria-label", "Stop current response");
-    sendBtn.title = "Stop current response";
+    sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>`;
+    sendBtn.setAttribute("aria-label", "Pause response (or press Esc)");
+    sendBtn.title = "Pause response (or press Esc)";
     sendBtn.classList.add("danger");
   } else {
     sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4 13 20l-2-7-7-1z"/></svg>`;
@@ -1601,16 +2425,57 @@ function updateSendButtonState() {
   }
 }
 
-function stopCurrentResponse({ restorePrompt = true } = {}) {
-  if (!activeStreamController) return;
-  activeStreamController.abort();
-  activeStreamController = null;
+function stopCurrentResponse({ restorePrompt = true, reason = "Response paused. Edit your prompt and send again." } = {}) {
+  if (activeStreamController) {
+    activeStreamController.abort();
+    activeStreamController = null;
+  }
   isStreamingResponse = false;
   updateSendButtonState();
+
+  if (activeAssistantDiv && activeAssistantDiv.isConnected) {
+    const textDiv = activeAssistantDiv.querySelector(".thinking-target, .md-content") || activeAssistantDiv.firstElementChild;
+    if (textDiv) {
+      textDiv.className = "";
+      textDiv.innerHTML = `
+        <div class="paused-box">
+          <div class="paused-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
+            <span>${escapeHtml(reason)}</span>
+          </div>
+          <div class="paused-actions">
+            <button class="paused-edit-btn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Edit prompt &amp; retry
+            </button>
+          </div>
+        </div>
+      `;
+      const editBtn = textDiv.querySelector(".paused-edit-btn");
+      if (editBtn) {
+        editBtn.addEventListener("click", () => {
+          if (activePromptText) {
+            input.value = activePromptText;
+            autoResizeComposer();
+            input.focus();
+          }
+          if (activePromptAttachment) {
+            pendingAttachment = activePromptAttachment;
+            renderAttachmentPreview();
+          }
+        });
+      }
+    }
+  }
+
   if (restorePrompt && activePromptText) {
     input.value = activePromptText;
     autoResizeComposer();
     input.focus();
+  }
+  if (restorePrompt && activePromptAttachment) {
+    pendingAttachment = activePromptAttachment;
+    renderAttachmentPreview();
   }
 }
 
@@ -1623,68 +2488,146 @@ async function sendMessage(text) {
     return;
   }
 
+  if (editingMessageId) {
+    const msgIdToRetry = editingMessageId;
+    const newText = text;
+    cancelEditing();
+
+    const assistantDiv = document.createElement("div");
+    assistantDiv.className = "msg assistant";
+    const assistantTextDiv = document.createElement("div");
+    assistantTextDiv.textContent = "updating response...";
+    assistantTextDiv.style.opacity = "0.6";
+    assistantDiv.appendChild(assistantTextDiv);
+    chat.appendChild(assistantDiv);
+    chat.scrollTop = chat.scrollHeight;
+
+    try {
+      sendBtn.disabled = true;
+      const res = await fetch("/chat/retry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, message_id: msgIdToRetry, new_message: newText }),
+      });
+      const data = await res.json();
+      await loadHistory(sessionId);
+      loadSessions();
+      if (data && data.answer) {
+        speak(data.answer);
+      }
+    } catch (err) {
+      console.error("Retry failed:", err);
+      await loadHistory(sessionId);
+    } finally {
+      sendBtn.disabled = false;
+    }
+    return;
+  }
+
   const fileToUpload = pendingAttachment;
   const promptText = text || (fileToUpload ? "Please summarize or explain this file." : "");
-if (!promptText) return;
-text = promptText;
+  if (!promptText) return;
+  text = promptText;
+  const attachedFilename = fileToUpload ? fileToUpload.name : null;
+
+  activePromptText = promptText;
+  activePromptAttachment = fileToUpload;
+
+  // Immediately show user message in chat
+  addMessage(promptText, "user", null, null, null, null, null, null, attachedFilename);
+  const userDiv = chat.lastElementChild;
+  input.value = "";
+  autoResizeComposer();
+
+  // Create assistant thinking message
+  const assistantDiv = document.createElement("div");
+  assistantDiv.className = "msg assistant";
+  activeAssistantDiv = assistantDiv;
+
+  const assistantTextDiv = document.createElement("div");
+  assistantTextDiv.className = "thinking-target";
+  assistantTextDiv.innerHTML = `
+    <div class="thinking-indicator">
+      <div class="thinking-dots"><span></span><span></span><span></span></div>
+      <span class="thinking-label">${fileToUpload ? "Uploading document &amp; thinking..." : "Thinking..."}</span>
+    </div>
+  `;
+  assistantDiv.appendChild(assistantTextDiv);
+  chat.appendChild(assistantDiv);
+  chat.scrollTop = chat.scrollHeight;
+  showChat(true);
+
+  const controller = new AbortController();
+  activeStreamController = controller;
+  isStreamingResponse = true;
+  updateSendButtonState();
 
   if (fileToUpload) {
-    pendingAttachment = null;
-    renderAttachmentPreview();
-
     const formData = new FormData();
     formData.append("file", fileToUpload);
     formData.append("tags", "chat-upload");
     formData.append("confidence", "1.0");
     formData.append("session_id", sessionId);
 
-    const currentModeRes = await fetch("/sessions");
-    const sessionsData = await currentModeRes.json();
-    const current = sessionsData.sessions.find(s => s.session_id === sessionId);
-    const mode = current ? current.mode : "general";
-    formData.append("categories", mode);
-
     try {
-      await fetch("/knowledge/ingest_document", { method: "POST", body: formData });
+      const currentModeRes = await fetch("/sessions", { signal: controller.signal });
+      const sessionsData = await currentModeRes.json();
+      const current = sessionsData.sessions ? sessionsData.sessions.find(s => s.session_id === sessionId) : null;
+      const mode = current ? current.mode : "general";
+      formData.append("categories", mode);
+
+      const uploadRes = await fetch("/knowledge/ingest_document", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
+
+      if (!uploadRes.ok) {
+        const errJson = await uploadRes.json().catch(() => ({}));
+        throw new Error(errJson.detail || ("Upload failed with status " + uploadRes.status));
+      }
+
+      pendingAttachment = null;
+      renderAttachmentPreview();
+      const label = assistantTextDiv.querySelector(".thinking-label");
+      if (label) label.textContent = "Thinking...";
     } catch (err) {
-      addMessage("Error uploading file: " + err, "assistant");
+      if (err.name === "AbortError") {
+        stopCurrentResponse({ restorePrompt: true, reason: "Upload paused. Edit your prompt and send again." });
+        return;
+      }
+      assistantTextDiv.innerHTML = `<span style="color:var(--color-error)">Error uploading file: ${escapeHtml(err.message || err)}</span>`;
+      if (activeStreamController === controller) activeStreamController = null;
+      isStreamingResponse = false;
+      updateSendButtonState();
       return;
     }
   }
 
-  activePromptText = promptText;
-  addMessage(promptText, "user");
-  const userDiv = chat.lastElementChild;
-  input.value = "";
-  autoResizeComposer();
-
-  const assistantDiv = document.createElement("div");
-  assistantDiv.className = "msg assistant";
-  const assistantTextDiv = document.createElement("div");
-  assistantTextDiv.textContent = "thinking...";
-  assistantTextDiv.style.opacity = "0.6";
-  assistantDiv.appendChild(assistantTextDiv);
-  chat.appendChild(assistantDiv);
-  chat.scrollTop = chat.scrollHeight;
-  showChat(true);
-
   let fullText = "";
-  const controller = new AbortController();
-  activeStreamController = controller;
-  isStreamingResponse = true;
-  updateSendButtonState();
 
   try {
     const res = await fetch("/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
-      body: JSON.stringify({ session_id: sessionId, message: promptText }),
+      body: JSON.stringify({ session_id: sessionId, message: promptText, attachment: attachedFilename }),
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let errDetail = errText;
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.detail) errDetail = parsed.detail;
+      } catch (e) {}
+      throw new Error(errDetail || ("Server returned HTTP " + res.status));
+    }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let receivedChunk = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -1699,13 +2642,18 @@ text = promptText;
         const event = JSON.parse(line.slice(6));
 
         if (event.type === "chunk") {
-          if (fullText === "") {
-            assistantTextDiv.style.opacity = "1";
+          if (!receivedChunk) {
+            receivedChunk = true;
+            assistantTextDiv.innerHTML = "";
+            assistantTextDiv.className = "";
           }
           fullText += event.text;
           assistantTextDiv.textContent = fullText;
           chat.scrollTop = chat.scrollHeight;
         } else if (event.type === "done") {
+          if (!fullText.trim()) {
+            fullText = "No response generated. Please try again.";
+          }
           assistantTextDiv.className = "md-content";
           assistantTextDiv.innerHTML = renderMarkdown(fullText);
           attachActions(userDiv, "user", text, event.user_message_id, event.user_message_id);
@@ -1713,8 +2661,8 @@ text = promptText;
           const metaDiv = document.createElement("div");
           metaDiv.className = "meta";
           const badge = document.createElement("span");
-          badge.className = "mode-badge mode-" + event.mode;
-          badge.textContent = event.mode.replace(/_/g, " ");
+          badge.className = "mode-badge mode-" + (event.mode || "general");
+          badge.textContent = (event.mode || "general").replace(/_/g, " ");
           metaDiv.appendChild(badge);
           if (event.sources && event.sources.length) {
             const src = document.createElement("span");
@@ -1726,7 +2674,7 @@ text = promptText;
           if (event.filed_elsewhere) {
             const moveBtn = document.createElement("button");
             moveBtn.textContent = "Move to General chat";
-            moveBtn.style.cssText = "margin-top:8px;font-size:0.8em;padding:4px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface-hover);color:#ccc;cursor:pointer;display:block;";
+            moveBtn.style.cssText = "margin-top:8px;font-size:0.8em;padding:4px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface-hover);color:var(--color-text-muted);cursor:pointer;display:block;";
             moveBtn.addEventListener("click", async () => {
               await fetch("/sessions/move_message", {
                 method: "POST", headers: { "Content-Type": "application/json" },
@@ -1749,13 +2697,16 @@ text = promptText;
         }
       }
     }
+
+    if (!receivedChunk && !fullText) {
+      assistantTextDiv.innerHTML = '<span style="color:var(--color-text-muted)">No response received from NOVA. Please check if the model is ready and try again.</span>';
+    }
   } catch (err) {
     if (err.name === "AbortError") {
-      assistantTextDiv.textContent = "Response paused. Edit your prompt and send again.";
-      assistantTextDiv.style.opacity = "1";
+      stopCurrentResponse({ restorePrompt: true, reason: "Response paused. Edit your prompt and send again." });
       return;
     }
-    assistantTextDiv.textContent = "Error: could not reach NOVA. " + err;
+    assistantTextDiv.innerHTML = `<span style="color:var(--color-error)">Error: ${escapeHtml(err.message || err)}</span>`;
   } finally {
     if (activeStreamController === controller) {
       activeStreamController = null;
@@ -1799,16 +2750,47 @@ async function loadHistory(id) {
     for (const msg of data.messages) {
       const msgUserId = msg.role === "user" ? msg.id : undefined;
       const assistantId = msg.role === "assistant" ? msg.id : undefined;
-      addMessage(msg.content, msg.role, null, null, msgUserId, assistantId, !!msg.pinned, !!msg.starred);
+      addMessage(msg.content, msg.role, null, null, msgUserId, assistantId, !!msg.pinned, !!msg.starred, msg.attachment);
     }
   } catch (err) {
     showChat(false);
   }
 }
 
+let recentSortOrder = localStorage.getItem("nova_recent_sort") || "date-desc";
+
+function sortSessionsList(sessions, sortOrder) {
+  const list = [...sessions];
+  switch (sortOrder) {
+    case "date-asc":
+      return list.sort((a, b) => {
+        const da = a.last_activity ? new Date(a.last_activity).getTime() : 0;
+        const db = b.last_activity ? new Date(b.last_activity).getTime() : 0;
+        return da - db;
+      });
+    case "name-asc":
+      return list.sort((a, b) => (a.title || "Untitled chat").localeCompare(b.title || "Untitled chat", undefined, { numeric: true, sensitivity: "base" }));
+    case "name-desc":
+      return list.sort((a, b) => (b.title || "Untitled chat").localeCompare(a.title || "Untitled chat", undefined, { numeric: true, sensitivity: "base" }));
+    case "date-desc":
+    default:
+      return list.sort((a, b) => {
+        const da = a.last_activity ? new Date(a.last_activity).getTime() : 0;
+        const db = b.last_activity ? new Date(b.last_activity).getTime() : 0;
+        return db - da;
+      });
+  }
+}
+
+function closeRecentSortDropdown() {
+  document.querySelectorAll(".recent-sort-dropdown.open").forEach(el => el.classList.remove("open"));
+  document.querySelectorAll(".session-group-filter-btn.menu-open").forEach(el => el.classList.remove("menu-open"));
+}
+
 function closeAllSessionMenus() {
   document.querySelectorAll(".session-menu-dropdown.open").forEach(el => el.classList.remove("open"));
   document.querySelectorAll(".session-menu-btn.menu-open").forEach(el => el.classList.remove("menu-open"));
+  closeRecentSortDropdown();
 }
 
 function mkSessionMenuItem(iconSvg, label, onClick, extraClass) {
@@ -1941,13 +2923,93 @@ function createSessionItem(s) {
   return item;
 }
 
-function renderSessionGroup(sessions, label) {
+function renderSessionGroup(sessions, label, isRecentWithSort = false) {
   if (!sessions.length) return;
   if (label) {
-    const header = document.createElement("div");
-    header.className = "session-group-label";
-    header.textContent = label;
-    sessionList.appendChild(header);
+    if (isRecentWithSort) {
+      const header = document.createElement("div");
+      header.className = "session-group-header";
+
+      const titleSpan = document.createElement("span");
+      titleSpan.className = "session-group-label";
+      titleSpan.textContent = label;
+      header.appendChild(titleSpan);
+
+      const sortWrap = document.createElement("div");
+      sortWrap.className = "session-group-sort-wrap";
+
+      const isNonDefaultSort = recentSortOrder !== "date-desc";
+      const sortBtn = document.createElement("button");
+      sortBtn.type = "button";
+      sortBtn.id = "recentSortBtn";
+      sortBtn.className = "session-group-filter-btn" + (isNonDefaultSort ? " active-filter" : "");
+      sortBtn.innerHTML = ICONS.filter;
+      const sortLabelMap = {
+        "date-desc": "Date (Newest first)",
+        "date-asc": "Date (Oldest first)",
+        "name-asc": "Name (A to Z)",
+        "name-desc": "Name (Z to A)"
+      };
+      sortBtn.title = `Sort recents (Current: ${sortLabelMap[recentSortOrder] || "Date"})`;
+      sortBtn.setAttribute("aria-label", "Sort recent conversations");
+      sortBtn.setAttribute("aria-haspopup", "true");
+
+      const dropdown = document.createElement("div");
+      dropdown.id = "recentSortDropdown";
+      dropdown.className = "recent-sort-dropdown";
+      dropdown.setAttribute("role", "menu");
+
+      const sortOptions = [
+        { id: "date-desc", label: "Date (Newest first)" },
+        { id: "date-asc", label: "Date (Oldest first)" },
+        { divider: true },
+        { id: "name-asc", label: "Name (A → Z)" },
+        { id: "name-desc", label: "Name (Z → A)" },
+      ];
+
+      for (const opt of sortOptions) {
+        if (opt.divider) {
+          const div = document.createElement("div");
+          div.className = "recent-sort-divider";
+          dropdown.appendChild(div);
+          continue;
+        }
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "recent-sort-item" + (recentSortOrder === opt.id ? " selected" : "");
+        item.setAttribute("role", "menuitem");
+        item.innerHTML = `<svg class="sort-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>${opt.label}</span>`;
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          recentSortOrder = opt.id;
+          localStorage.setItem("nova_recent_sort", recentSortOrder);
+          closeRecentSortDropdown();
+          loadSessions();
+        });
+        dropdown.appendChild(item);
+      }
+
+      sortBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = dropdown.classList.contains("open");
+        closeAllSessionMenus();
+        closeRecentSortDropdown();
+        if (!isOpen) {
+          dropdown.classList.add("open");
+          sortBtn.classList.add("menu-open");
+        }
+      });
+
+      sortWrap.appendChild(sortBtn);
+      sortWrap.appendChild(dropdown);
+      header.appendChild(sortWrap);
+      sessionList.appendChild(header);
+    } else {
+      const header = document.createElement("div");
+      header.className = "session-group-label";
+      header.textContent = label;
+      sessionList.appendChild(header);
+    }
   }
   for (const s of sessions) {
     sessionList.appendChild(createSessionItem(s));
@@ -1972,17 +3034,20 @@ async function loadSessions() {
     }
 
     if (showArchived) {
-      renderSessionGroup(visibleSessions, null);
+      const sortedArchived = sortSessionsList(visibleSessions, recentSortOrder);
+      renderSessionGroup(sortedArchived, "Archived", true);
       return;
     }
 
     const pinned = visibleSessions.filter(s => s.pinned);
     const starred = visibleSessions.filter(s => s.starred && !s.pinned);
-    const recent = visibleSessions.filter(s => !s.pinned && !s.starred);
+    let recent = visibleSessions.filter(s => !s.pinned && !s.starred);
+
+    recent = sortSessionsList(recent, recentSortOrder);
 
     renderSessionGroup(pinned, pinned.length ? "Pinned" : null);
     renderSessionGroup(starred, starred.length ? "Starred" : null);
-    renderSessionGroup(recent, recent.length ? "Recent" : null);
+    renderSessionGroup(recent, recent.length ? "Recent" : null, true);
   } catch (err) {
     console.error("Could not load sessions:", err);
   }
@@ -2163,6 +3228,7 @@ document.getElementById("newModeBtn").addEventListener("click", async () => {
 });
 
 function switchSession(id) {
+  cancelEditing();
   sessionId = id;
   localStorage.setItem("nova_session_id", sessionId);
   loadHistory(sessionId);
@@ -2172,6 +3238,7 @@ function switchSession(id) {
 }
 
 function startNewChat() {
+  cancelEditing();
   sessionId = "mobile-" + Math.random().toString(36).slice(2);
   localStorage.setItem("nova_session_id", sessionId);
   chat.innerHTML = "";
@@ -2239,23 +3306,58 @@ headerStarredItem.addEventListener("click", async (e) => {
   e.stopPropagation();
   closeHeaderMenu();
   const isVisible = starredPanel.style.display === "block";
-  if (isVisible) {
-    starredPanel.style.display = "none";
-  } else {
+  closeAllPanels();
+  if (!isVisible) {
     await loadStarred();
     starredPanel.style.display = "block";
   }
 });
 
+document.querySelectorAll(".panel-close-btn").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const panel = btn.closest("#filesPanel, #starredPanel");
+    if (panel) panel.style.display = "none";
+  });
+});
+
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && isStreamingResponse) {
+    e.preventDefault();
+    stopCurrentResponse({ restorePrompt: true });
+    return;
+  }
+  if (e.key === "Escape" && editingMessageId) {
+    cancelEditing();
+    return;
+  }
+  if (e.key === "Escape" && filePreviewOverlay && filePreviewOverlay.classList.contains("open")) {
+    closeFilePreview();
+    return;
+  }
+  if (e.key === "Escape" && dashboardOverlay.classList.contains("open")) closeDashboard();
   if (e.key === "Escape" && settingsOverlay.classList.contains("open")) closeSettings();
   if (e.key === "Escape" && searchOverlay.classList.contains("open")) closeSearchOverlay();
-  if (e.key === "Escape") { closeAllSessionMenus(); closeHeaderMenu(); }
+  if (e.key === "Escape") {
+    closeAllSessionMenus();
+    closeHeaderMenu();
+    closeRecentSortDropdown();
+    closeAllPanels();
+  }
 });
 
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".session-menu-wrap")) closeAllSessionMenus();
+  if (!e.target.closest(".session-group-sort-wrap")) closeRecentSortDropdown();
   if (!e.target.closest(".header-menu-wrap")) closeHeaderMenu();
+  if (
+    !e.target.closest("#filesPanel") &&
+    !e.target.closest("#starredPanel") &&
+    !e.target.closest("#headerFilesItem") &&
+    !e.target.closest("#headerStarredItem")
+  ) {
+    closeAllPanels();
+  }
   if (!e.target.closest("#searchSheet") && !e.target.closest("#searchBtn")) {
     if (searchOverlay.classList.contains("open")) closeSearchOverlay();
   }
@@ -2271,6 +3373,11 @@ sendBtn.addEventListener("click", () => {
 });
 input.addEventListener("input", autoResizeComposer);
 input.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && editingMessageId) {
+    e.preventDefault();
+    cancelEditing();
+    return;
+  }
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     if (isStreamingResponse) {

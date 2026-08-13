@@ -93,7 +93,10 @@ def research_topic(query: str) -> ResearchOutcome | None:
         "Do not include anything else in your response."
     )
 
-    response = chat([{"role": "user", "content": verification_prompt}])
+    response = chat([
+        {"role": "user", "content": verification_prompt},
+        {"role": "assistant", "content": "<think>\n</think>"}
+    ])
 
     import re
     confidence = 0.6
@@ -133,7 +136,10 @@ def verify_claim(topic: str, claimed_correct_info: str) -> tuple[str, str]:
         "(SUPPORT, CONTRADICT, or UNCLEAR), then a colon, then a one-"
         "sentence explanation. Example: 'SUPPORT: both describe the same mechanism.'"
     )
-    response = chat([{"role": "user", "content": verification_prompt}])
+    response = chat([
+        {"role": "user", "content": verification_prompt},
+        {"role": "assistant", "content": "<think>\n</think>"}
+    ])
 
     verdict = response.strip().split(":")[0].strip().upper()
     if verdict == "SUPPORT":

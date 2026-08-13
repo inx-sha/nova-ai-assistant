@@ -103,6 +103,7 @@ def init_db() -> None:
         conn.executescript(SCHEMA)
         _migrate_add_column(conn, "conversations", "pinned", "INTEGER NOT NULL DEFAULT 0")
         _migrate_add_column(conn, "conversations", "starred", "INTEGER NOT NULL DEFAULT 0")
+        _migrate_add_column(conn, "conversations", "attachment", "TEXT")
         _migrate_add_column(conn, "sessions", "pinned", "INTEGER NOT NULL DEFAULT 0")
         _migrate_add_column(conn, "sessions", "starred", "INTEGER NOT NULL DEFAULT 0")
 
@@ -118,11 +119,11 @@ def _migrate_add_column(conn, table: str, column: str, definition: str) -> None:
 
 # --- Conversation memory ---
 
-def add_message(session_id: str, role: str, content: str) -> int:
+def add_message(session_id: str, role: str, content: str, attachment: str | None = None) -> int:
     with get_conn() as conn:
         cursor = conn.execute(
-            "INSERT INTO conversations (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
-            (session_id, role, content, _now()),
+            "INSERT INTO conversations (session_id, role, content, timestamp, attachment) VALUES (?, ?, ?, ?, ?)",
+            (session_id, role, content, _now(), attachment),
         )
         return cursor.lastrowid
 
@@ -139,7 +140,7 @@ def get_recent_messages(session_id: str, limit: int = 20) -> list[dict]:
 def get_session_history_with_ids(session_id: str, limit: int = 50) -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT id, role, content, pinned, starred FROM conversations "
+            "SELECT id, role, content, pinned, starred, attachment FROM conversations "
             "WHERE session_id = ? ORDER BY id ASC LIMIT ?",
             (session_id, limit),
         ).fetchall()

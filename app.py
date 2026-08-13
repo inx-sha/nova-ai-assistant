@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 from core import memory
 from core.router import route_query
@@ -58,6 +62,7 @@ class HistoryResponse(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    attachment: str | None = None
 
 
 
@@ -193,7 +198,7 @@ def move_message_endpoint(req: MoveMessageRequest) -> dict:
 def chat_endpoint(req: ChatRequest) -> ChatResponse:
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="message cannot be empty")
-    result = route_query(req.session_id, req.message)
+    result = route_query(req.session_id, req.message, attachment=req.attachment)
     return ChatResponse(
         answer=result.answer, mode=result.mode, sources=result.sources,
         filed_elsewhere=result.filed_elsewhere,
@@ -202,14 +207,14 @@ def chat_endpoint(req: ChatRequest) -> ChatResponse:
     )
 
 @app.post("/chat/stream")
-async def chat_stream_endpoint(req: ChatRequest):
+def chat_stream_endpoint(req: ChatRequest):
     from fastapi.responses import StreamingResponse
 
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="message cannot be empty")
 
     def event_generator():
-        for event in route_query_stream(req.session_id, req.message):
+        for event in route_query_stream(req.session_id, req.message, attachment=req.attachment):
             yield f"data: {json_module.dumps(event)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
@@ -232,7 +237,7 @@ SUPPORTED_DOC_EXTENSIONS = {
 
 
 @app.post("/knowledge/ingest_document", response_model=IngestResponse)
-async def ingest_document_endpoint(
+def ingest_document_endpoint(
     file: UploadFile = File(...),
     tags: str = Form(""),
     confidence: float = Form(1.0),
@@ -253,16 +258,16 @@ async def ingest_document_endpoint(
             detail=f"Unsupported file type. Supported: {', '.join(SUPPORTED_DOC_EXTENSIONS)}",
         )
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
-        shutil.copyfileobj(file.file, tmp)
-        tmp_path = tmp.name
+    safe_filename = os.path.basename(file.filename)
+    saved_path = os.path.join(UPLOAD_DIR, safe_filename)
+    with open(saved_path, "wb") as f_out:
+        shutil.copyfileobj(file.file, f_out)
 
     try:
         extractor = SUPPORTED_DOC_EXTENSIONS[extension]
-        text = extractor(tmp_path)
-    finally:
-        import os
-        os.remove(tmp_path)
+        text = extractor(saved_path)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Failed to extract text from file: {e}")
 
     if not text.strip():
         raise HTTPException(status_code=422, detail="No extractable text found in this file")
@@ -291,7 +296,84 @@ async def ingest_document_endpoint(
 
 @app.get("/sessions/{session_id}/files")
 def get_session_files_endpoint(session_id: str) -> dict:
-    return {"files": get_session_files(session_id)}
+    from knowledge.store import get_all_uploaded_files
+    return {
+        "files": get_session_files(session_id),
+        "session_files": get_session_files(session_id),
+        "all_files": get_all_uploaded_files(),
+    }
+
+@app.get("/knowledge/files")
+def get_knowledge_files_endpoint() -> dict:
+    from knowledge.store import get_all_uploaded_files
+    return {"files": get_all_uploaded_files()}
+
+@app.get("/files/raw/{filename}")
+def get_raw_file_endpoint(filename: str):
+    safe_filename = os.path.basename(filename)
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path, filename=safe_filename, content_disposition_type="inline")
+
+    # Fallback to extracted text from Chroma knowledge base
+    from knowledge.store import find_chunks_by_source
+    chunks = find_chunks_by_source(filename)
+    if chunks:
+        full_text = "\n\n".join(c.get("text", "") for c in chunks if c.get("text"))
+        if full_text:
+            return Response(
+                content=full_text,
+                media_type="text/plain; charset=utf-8",
+                headers={"Content-Disposition": f'inline; filename="{safe_filename}.txt"'},
+            )
+
+    raise HTTPException(status_code=404, detail=f"File '{filename}' not found")
+
+@app.get("/files/download/{filename}")
+def download_file_endpoint(filename: str):
+    safe_filename = os.path.basename(filename)
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path, filename=safe_filename, content_disposition_type="attachment")
+
+    # Fallback for knowledge chunks
+    from knowledge.store import find_chunks_by_source
+    chunks = find_chunks_by_source(filename)
+    if chunks:
+        full_text = "\n\n".join(c.get("text", "") for c in chunks if c.get("text"))
+        if full_text:
+            return Response(
+                content=full_text,
+                media_type="text/plain; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{safe_filename}.txt"'},
+            )
+
+    raise HTTPException(status_code=404, detail=f"File '{filename}' not found")
+
+@app.get("/files/content/{filename}")
+def get_file_content_endpoint(filename: str):
+    safe_filename = os.path.basename(filename)
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    has_raw = os.path.isfile(file_path)
+
+    from knowledge.store import find_chunks_by_source
+    chunks = find_chunks_by_source(filename)
+    content = ""
+    if chunks:
+        content = "\n\n".join(c.get("text", "") for c in chunks if c.get("text"))
+    elif has_raw and (safe_filename.endswith(".txt") or safe_filename.endswith(".md")):
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+
+    return {
+        "filename": safe_filename,
+        "has_raw_file": has_raw,
+        "raw_url": f"/files/raw/{safe_filename}",
+        "download_url": f"/files/download/{safe_filename}",
+        "chunk_count": len(chunks),
+        "content": content,
+    }
+
 
 @app.post("/knowledge/pin", response_model=PinResponse)
 def pin_endpoint(req: PinRequest) -> PinResponse:
@@ -369,22 +451,13 @@ def retry_endpoint(req: RetryRequest) -> ChatResponse:
 @app.post("/backup/create")
 def create_backup_endpoint() -> dict:
     from knowledge.backup import create_backup
-    return create_backup()
-
-@app.post("/backup/create")
-async def backup_create():
     try:
-        result = create_backup()
-        return result
+        return create_backup()
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Backup failed: {e}")
 
-
-@app.get("/backup/list")
-async def backup_list():
-    return {"backups": list_backups()}
 
 @app.get("/backup/list")
 def list_backups_endpoint() -> dict:

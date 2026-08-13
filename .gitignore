@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 data/nova.db
 data/chroma/
+data/uploads/
 .env

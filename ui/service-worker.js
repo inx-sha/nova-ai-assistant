@@ -1,4 +1,4 @@
-const CACHE_NAME = "nova-cache-v1";
+const CACHE_NAME = "nova-cache-v4";
 const CACHE_FILES = [
   "/",
   "/static/manifest.json",

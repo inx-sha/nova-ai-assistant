@@ -7,7 +7,7 @@ DATA_DIR.mkdir(exist_ok=True)
 
 # --- LLM ---
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-LLM_MODEL = os.getenv("NOVA_LLM_MODEL", "qwen2.5:3b-instruct-q4_K_M")
+LLM_MODEL = os.getenv("NOVA_LLM_MODEL", "qwen3.5:latest")
 LLM_CONTEXT_WINDOW = int(os.getenv("NOVA_LLM_CTX", "4096"))
 LLM_TEMPERATURE = float(os.getenv("NOVA_LLM_TEMP", "0.3"))
 

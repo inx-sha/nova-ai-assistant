@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import os
 import json
 import httpx
 
-from config import OLLAMA_HOST, LLM_MODEL, EMBED_MODEL, LLM_TEMPERATURE
+from config import OLLAMA_HOST, LLM_MODEL, EMBED_MODEL, LLM_TEMPERATURE, LLM_CONTEXT_WINDOW
 
 
 class LLMError(RuntimeError):
     pass
+
+
+_http_client = httpx.Client(timeout=httpx.Timeout(180.0, connect=10.0), limits=httpx.Limits(max_keepalive_connections=20, max_connections=50))
 
 
 def chat(messages: list[dict], temperature: float | None = None) -> str:
@@ -19,38 +23,65 @@ def chat(messages: list[dict], temperature: float | None = None) -> str:
         "model": LLM_MODEL,
         "messages": messages,
         "stream": False,
-        "options": {"temperature": temperature if temperature is not None else LLM_TEMPERATURE},
+        "options": {
+            "temperature": temperature if temperature is not None else LLM_TEMPERATURE,
+            "num_ctx": LLM_CONTEXT_WINDOW,
+            "num_thread": os.cpu_count() or 8,
+        },
     }
     try:
-        resp = httpx.post(f"{OLLAMA_HOST}/api/chat", json=payload, timeout=180.0)
+        resp = _http_client.post(f"{OLLAMA_HOST}/api/chat", json=payload)
         resp.raise_for_status()
     except httpx.HTTPError as e:
         raise LLMError(f"Ollama chat request failed: {e}") from e
 
     data = resp.json()
-    return data.get("message", {}).get("content", "")
+    content = data.get("message", {}).get("content", "")
+    # Strip <think>...</think> block if present
+    if "<think>" in content and "</think>" in content:
+        content = content.split("</think>", 1)[1].strip()
+    return content
 
 def chat_stream(messages: list[dict], temperature: float | None = None):
     """
     Generator version of chat() -- yields text chunks as they arrive from
-    Ollama, instead of waiting for the full response. Used for streaming
-    responses to the UI so answers appear progressively, like ChatGPT's
-    typing effect, rather than all at once after a long wait.
+    Ollama, filtering internal reasoning tags so users get immediate clean output.
     """
     payload = {
         "model": LLM_MODEL,
         "messages": messages,
         "stream": True,
-        "options": {"temperature": temperature if temperature is not None else LLM_TEMPERATURE},
+        "options": {
+            "temperature": temperature if temperature is not None else LLM_TEMPERATURE,
+            "num_ctx": LLM_CONTEXT_WINDOW,
+            "num_thread": os.cpu_count() or 8,
+        },
     }
     try:
-        with httpx.stream("POST", f"{OLLAMA_HOST}/api/chat", json=payload, timeout=120.0) as resp:
+        with _http_client.stream("POST", f"{OLLAMA_HOST}/api/chat", json=payload) as resp:
             resp.raise_for_status()
+            in_think = False
             for line in resp.iter_lines():
                 if not line:
                     continue
                 chunk = json.loads(line)
                 content = chunk.get("message", {}).get("content", "")
+                if not content:
+                    if chunk.get("done"):
+                        break
+                    continue
+
+                if "<think>" in content:
+                    in_think = True
+                    content = content.split("<think>", 1)[0]
+
+                if in_think:
+                    if "</think>" in content:
+                        in_think = False
+                        content = content.split("</think>", 1)[1]
+                    else:
+                        content = ""
+
                 if content:
                     yield content
                 if chunk.get("done"):
@@ -62,7 +93,7 @@ def embed(text: str) -> list[float]:
     """Returns the embedding vector for a piece of text."""
     payload = {"model": EMBED_MODEL, "prompt": text}
     try:
-        resp = httpx.post(f"{OLLAMA_HOST}/api/embeddings", json=payload, timeout=120.0)
+        resp = _http_client.post(f"{OLLAMA_HOST}/api/embeddings", json=payload)
         resp.raise_for_status()
     except httpx.HTTPError as e:
         raise LLMError(f"Ollama embeddings request failed: {e}") from e
@@ -72,3 +103,7 @@ def embed(text: str) -> list[float]:
     if not embedding:
         raise LLMError(f"No embedding returned for text (len={len(text)})")
     return embedding
+
+def embed_many(texts: list[str]) -> list[list[float]]:
+    """Returns embedding vectors for a list of text strings efficiently."""
+    return [embed(t) for t in texts]

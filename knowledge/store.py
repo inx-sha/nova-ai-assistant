@@ -51,6 +51,36 @@ def add_chunk(text: str, source: str, tags: list[str] | None = None,
     return chunk_id
 
 
+def add_chunks_batch(chunks: list[str], source: str, tags: list[str] | None = None,
+                     confidence: float = 1.0, categories: list[str] | None = None,
+                     tier: str = "cache", doc_type: str = "general") -> list[str]:
+    """Stores multiple chunks in a single high-performance ChromaDB batch call."""
+    if not chunks:
+        return []
+
+    vectors = [embed(c) for c in chunks]
+    ids = [str(uuid.uuid4()) for _ in chunks]
+    now_iso = datetime.now(timezone.utc).isoformat()
+    metas = [{
+        "source": source,
+        "tags": ",".join(tags or []),
+        "confidence": confidence,
+        "categories": ",".join(categories or ["general"]),
+        "doc_type": doc_type,
+        "tier": tier,
+        "date_collected": now_iso,
+    } for _ in chunks]
+
+    with _write_lock:
+        get_collection().add(
+            ids=ids,
+            embeddings=vectors,
+            documents=chunks,
+            metadatas=metas,
+        )
+    return ids
+
+
 def query(text: str, top_k: int = 5, category_filter: str | None = None,
           doc_type_filter: list[str] | None = ["general", "technical_report"]) -> list[dict]:
     """
@@ -135,13 +165,26 @@ def set_doc_type(chunk_id: str, doc_type: str) -> bool:
 
 
 def find_chunks_by_source(source: str) -> list[dict]:
-    """..."""
+    """Find chunks matching a source name or filename."""
     with _write_lock:
         collection = get_collection()
         results = collection.get(where={"source": source})
     out = []
-    for chunk_id, doc, meta in zip(results["ids"], results["documents"], results["metadatas"]):
-        out.append({"id": chunk_id, "text": doc, "metadata": meta})
+    if results and results.get("ids"):
+        for chunk_id, doc, meta in zip(results["ids"], results["documents"], results["metadatas"]):
+            out.append({"id": chunk_id, "text": doc, "metadata": meta})
+
+    if not out:
+        # Fallback: search by matching basename across metadata (handles case or path differences)
+        source_base = source.replace("\\", "/").split("/")[-1].strip().lower()
+        if source_base:
+            with _write_lock:
+                all_data = get_collection().get()
+            for chunk_id, doc, meta in zip(all_data.get("ids", []), all_data.get("documents", []), all_data.get("metadatas", [])):
+                s = meta.get("source", "").replace("\\", "/").split("/")[-1].strip().lower()
+                if s == source_base or (len(source_base) > 4 and source_base in s):
+                    out.append({"id": chunk_id, "text": doc, "metadata": meta})
+
     return out
 
 from datetime import timedelta
@@ -236,3 +279,40 @@ def get_knowledge_stats() -> dict:
         "growth_last_14_days": dict(sorted(daily_counts.items())),
         "average_confidence": round(avg_confidence, 3),
     }
+
+
+def get_all_uploaded_files() -> list[dict]:
+    """
+    Returns a list of all uploaded documents stored in knowledge base,
+    aggregated by source file, with chunk count, doc_type, categories, date, tier.
+    """
+    with _write_lock:
+        all_chunks = get_collection().get()
+
+    files_map = {}
+    for meta in all_chunks.get("metadatas", []):
+        source = meta.get("source", "")
+        if not source or source.startswith("web_research:") or source.startswith("pack:"):
+            continue
+
+        filename = source.split("/")[-1].split("\\")[-1]
+
+        if source not in files_map:
+            files_map[source] = {
+                "source": source,
+                "filename": filename,
+                "doc_type": meta.get("doc_type") or "document",
+                "categories": meta.get("categories") or "general",
+                "tier": meta.get("tier") or "cache",
+                "chunk_count": 0,
+                "date_collected": meta.get("date_collected") or "",
+            }
+        files_map[source]["chunk_count"] += 1
+        if meta.get("doc_type") and files_map[source]["doc_type"] == "document":
+            files_map[source]["doc_type"] = meta.get("doc_type")
+        if meta.get("date_collected") and not files_map[source]["date_collected"]:
+            files_map[source]["date_collected"] = meta.get("date_collected")
+
+    files_list = list(files_map.values())
+    files_list.sort(key=lambda x: (x.get("date_collected", "") or "", x.get("filename", "")), reverse=True)
+    return files_list

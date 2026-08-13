@@ -86,12 +86,77 @@ def _is_casual(text: str) -> bool:
 RESUME_PATTERNS = {
     "resume", "cv", "my experience", "my education", "my skills",
     "my background", "my work experience", "my projects", "my qualifications",
+    "selected projects", "about me", "my profile",
 }
 
 
 def _is_resume_query(text: str) -> bool:
     cleaned = text.strip().lower()
     return any(p in cleaned for p in RESUME_PATTERNS)
+
+
+def _find_target_document(session_id: str, user_input: str, attachment: str | None = None) -> tuple[str | None, list[dict]]:
+    """
+    Determines if the query targets a specific document (e.g., attached file,
+    uploaded session file, or CV/resume reference). If found, returns (source_name, chunks).
+    """
+    from knowledge.store import find_chunks_by_source, get_all_uploaded_files
+    cleaned = user_input.strip().lower()
+
+    # 1. Direct attachment parameter in current message
+    if attachment:
+        chunks = find_chunks_by_source(attachment)
+        if chunks:
+            return attachment, chunks
+        for f in get_all_uploaded_files():
+            fn = f.get("filename", "")
+            if fn.lower() == attachment.lower() or attachment.lower() in fn.lower():
+                c = find_chunks_by_source(fn)
+                if c:
+                    return fn, c
+
+    # 2. Uploaded files in the current session
+    session_files = memory.get_session_files(session_id)
+    if session_files:
+        is_doc_reference = any(k in cleaned for k in (
+            "this cv", "my cv", "the cv", "this resume", "my resume", "the resume",
+            "this file", "this document", "the document", "in the pdf", "the pdf",
+            "uploaded file", "this paper", "the report", "above cv", "attached file",
+            "this attachment", "project section", "experience section", "skills section",
+            "education section", "summarize this", "explain this"
+        ))
+
+        # Check for specific filename match
+        for sf in session_files:
+            fn = sf.get("filename", "")
+            fn_base = fn.rsplit(".", 1)[0].lower()
+            if fn_base and fn_base in cleaned:
+                chunks = find_chunks_by_source(fn)
+                if chunks:
+                    return fn, chunks
+
+        if is_doc_reference or len(session_files) == 1:
+            target_fn = session_files[-1].get("filename", "")
+            if target_fn:
+                chunks = find_chunks_by_source(target_fn)
+                if chunks:
+                    return target_fn, chunks
+
+    # 3. Global CV/Resume query or file reference across knowledge base
+    if _is_resume_query(cleaned) or any(k in cleaned for k in ("in the cv", "in this cv", "from the cv", "above cv", "in my cv", "of this cv", "in my resume", "the cv", "this cv", "my cv")):
+        all_files = get_all_uploaded_files()
+        resume_files = [
+            f for f in all_files
+            if f.get("doc_type") == "resume" or "cv" in f.get("filename", "").lower() or "resume" in f.get("filename", "").lower() or "inshaf" in f.get("filename", "").lower()
+        ]
+        if resume_files:
+            target_fn = resume_files[0].get("filename", "")
+            chunks = find_chunks_by_source(target_fn)
+            if chunks:
+                return target_fn, chunks
+
+    return None, []
+
 
 @dataclass
 class RouteResult:
@@ -116,30 +181,62 @@ class _PreparedResponse:
     user_message_id: int
 
 
-def _prepare_response(session_id: str, user_input: str) -> _PreparedResponse:
+def _prepare_response(session_id: str, user_input: str, attachment: str | None = None) -> _PreparedResponse:
     ensure_session(session_id)
     session_mode = get_session_mode(session_id)
-    user_message_id = memory.add_message(session_id, "user", user_input)
+    user_message_id = memory.add_message(session_id, "user", user_input, attachment=attachment)
     outcome = None
 
     if _is_casual(user_input):
-        recent = memory.get_recent_messages(session_id, limit=10)
-        messages = [{"role": "system", "content": _build_system_prompt()}, *recent,
-                    {"role": "user", "content": user_input}]
+        recent = memory.get_recent_messages(session_id, limit=5)
+        messages = [
+            {"role": "system", "content": _build_system_prompt()},
+            *recent,
+            {"role": "user", "content": user_input},
+            {"role": "assistant", "content": "<think>\n</think>"}
+        ]
         return _PreparedResponse(
             messages=messages, mode="casual", sources=[], filed_elsewhere=False,
             answer_temperature=None, user_message_id=user_message_id,
         )
 
+    # Check for document-specific targeting (attached file, session file, or CV/resume query)
+    target_source, doc_chunks = _find_target_document(session_id, user_input, attachment=attachment)
+    if target_source and doc_chunks:
+        mode = "high_confidence"
+        sources = [target_source]
+        full_doc_text = "\n\n".join(c["text"] for c in doc_chunks)
+        prompt = (
+            f"The context below is the exact, verified document content from '{target_source}'. "
+            f"Treat this document content as definitive fact.\n"
+            f"When asked about sections, projects, experiences, skills, education, or details, "
+            f"carefully review the entire document text and provide a complete, clear, comprehensive answer "
+            f"listing ALL relevant items from the document without omitting any entries or inventing information.\n\n"
+            f"Document Content ({target_source}):\n{full_doc_text}\n\n"
+            f"Question: {user_input}"
+        )
+        # Limit recent context to last 2 relevant turns to avoid token bloat/slow prefill
+        recent = memory.get_recent_messages(session_id, limit=2)
+        clean_recent = [r for r in recent if r.get("content", "").strip() and r["content"] != user_input]
+        messages = [{"role": "system", "content": _build_system_prompt()}, *clean_recent,
+                    {"role": "user", "content": prompt}]
+        return _PreparedResponse(
+            messages=messages, mode=mode, sources=sources, filed_elsewhere=False,
+            answer_temperature=0.1, user_message_id=user_message_id,
+        )
+
     category_filter = session_mode if session_mode != "general" else None
 
     if _is_resume_query(user_input):
-        doc_type_filter = None  # disable filtering -- let resume chunks through
+        doc_type_filter = ["resume"]  # strictly restrict to resume chunks
     else:
         doc_type_filter = ["general", "technical_report"]  # exclude resume from ordinary Q&A
 
     hits = knowledge_query(user_input, top_k=RAG_TOP_K, category_filter=category_filter,
                             doc_type_filter=doc_type_filter)
+    if not hits and _is_resume_query(user_input):
+        hits = knowledge_query(user_input, top_k=RAG_TOP_K, category_filter=category_filter,
+                                doc_type_filter=None)
 
     top_similarity = hits[0]["similarity"] if hits else 0.0
     broad_coverage_count = sum(1 for h in hits if h["similarity"] >= RAG_BROAD_COVERAGE_THRESHOLD)
@@ -238,8 +335,8 @@ def _prepare_response(session_id: str, user_input: str) -> _PreparedResponse:
     )
 
 
-def route_query(session_id: str, user_input: str) -> RouteResult:
-    prepared = _prepare_response(session_id, user_input)
+def route_query(session_id: str, user_input: str, attachment: str | None = None) -> RouteResult:
+    prepared = _prepare_response(session_id, user_input, attachment=attachment)
     answer = chat(prepared.messages, temperature=prepared.answer_temperature)
     assistant_message_id = memory.add_message(session_id, "assistant", answer)
 
@@ -251,7 +348,7 @@ def route_query(session_id: str, user_input: str) -> RouteResult:
     )
 
 
-def route_query_stream(session_id: str, user_input: str):
+def route_query_stream(session_id: str, user_input: str, attachment: str | None = None):
     """
     Generator version: yields small text chunks as they're generated,
     for progressive display in the UI. The full answer is still saved
@@ -260,7 +357,7 @@ def route_query_stream(session_id: str, user_input: str):
     one final {"type": "done", "mode":..., "sources":..., ...} with
     everything the frontend needs once the answer is complete.
     """
-    prepared = _prepare_response(session_id, user_input)
+    prepared = _prepare_response(session_id, user_input, attachment=attachment)
     full_answer = ""
 
     for chunk in chat_stream(prepared.messages, temperature=prepared.answer_temperature):
