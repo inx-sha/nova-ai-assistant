@@ -2772,7 +2772,7 @@ function stopCurrentResponse({ restorePrompt = true, reason = "Response paused. 
   }
 }
 
-async function sendMessage(text) {
+async function sendMessage(text, overrideOffTopic = false) {
   text = (text || input.value).trim();
   if (!text && !pendingAttachment) return;
 
@@ -2907,7 +2907,12 @@ async function sendMessage(text) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
-      body: JSON.stringify({ session_id: sessionId, message: promptText, attachment: attachedFilename }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        message: promptText,
+        attachment: attachedFilename,
+        override_off_topic: overrideOffTopic,
+      }),
     });
 
     if (!res.ok) {
@@ -3014,6 +3019,30 @@ async function sendMessage(text) {
             };
             btn.addEventListener("click", handleSetSubject);
             inp.addEventListener("keydown", (e) => { if (e.key === "Enter") handleSetSubject(); });
+            assistantTextDiv.appendChild(card);
+          }
+
+          if (event.mode === "off_topic") {
+            const card = document.createElement("div");
+            card.className = "inline-offtopic-card";
+            card.style.cssText = "display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;";
+            card.innerHTML = `
+              <button class="offtopic-answer-btn" style="padding:7px 14px;border:none;border-radius:var(--radius-md);background:var(--color-primary);color:var(--color-canvas);font-size:0.84em;font-weight:600;cursor:pointer;">Answer anyway</button>
+              <button class="offtopic-general-btn" style="padding:7px 14px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);color:var(--color-text);font-size:0.84em;font-weight:500;cursor:pointer;">Switch to General</button>
+            `;
+            const answerBtn = card.querySelector(".offtopic-answer-btn");
+            const generalBtn = card.querySelector(".offtopic-general-btn");
+
+            answerBtn.addEventListener("click", () => {
+              card.remove();
+              sendMessage(promptText, true);
+            });
+
+            generalBtn.addEventListener("click", () => {
+              card.remove();
+              switchSession(GENERAL_SESSION_ID);
+            });
+
             assistantTextDiv.appendChild(card);
           }
 

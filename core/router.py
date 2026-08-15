@@ -143,6 +143,51 @@ def _is_resume_query(text: str) -> bool:
         return False
 
 
+PERSONA_RELEVANCE_THRESHOLD = 0.44
+
+
+def _is_relevant_to_persona(session_id: str, user_input: str) -> bool:
+    persona_id, persona_subject = memory.get_session_persona(session_id)
+    if not persona_id:
+        # Plain topic-tag mode without persona: skip relevance check
+        return True
+
+    persona_tmpl = get_persona(persona_id)
+    if not persona_tmpl:
+        return True
+
+    if _is_casual(user_input):
+        return True
+
+    cleaned = user_input.strip().lower()
+
+    # 1. Fast-path keyword matching
+    keywords = list(persona_tmpl.keywords or [])
+    if persona_subject and persona_subject.strip():
+        keywords.extend([w.strip().lower() for w in persona_subject.replace(",", " ").split() if w.strip()])
+
+    normalized = cleaned.replace(",", " ").replace("-", " ").replace("?", " ")
+    words = set(normalized.split())
+    if any(k.lower() in normalized or k.lower() in words for k in keywords):
+        return True
+
+    # 2. Embedding similarity check against anchor
+    anchor = persona_tmpl.anchor_phrase
+    if persona_subject and persona_subject.strip():
+        anchor = f"questions about {persona_subject}, concepts, theories, problem solving, and details in {persona_subject}"
+
+    if not anchor:
+        return True
+
+    try:
+        query_vec = embed(cleaned)
+        anchor_vec = embed(anchor)
+        sim = _cosine_similarity(query_vec, anchor_vec)
+        return sim >= PERSONA_RELEVANCE_THRESHOLD
+    except Exception:
+        return True
+
+
 def _find_target_document(session_id: str, user_input: str, attachment: str | None = None) -> tuple[str | None, list[dict]]:
     """
     Determines if the query targets a specific document (e.g., attached file,
@@ -230,7 +275,8 @@ class _PreparedResponse:
     static_answer: str | None = None
 
 
-def _prepare_response(session_id: str, user_input: str, attachment: str | None = None) -> _PreparedResponse:
+def _prepare_response(session_id: str, user_input: str, attachment: str | None = None,
+                      override_off_topic: bool = False) -> _PreparedResponse:
     ensure_session(session_id)
     session_mode = get_session_mode(session_id)
     user_message_id = memory.add_message(session_id, "user", user_input, attachment=attachment)
@@ -249,6 +295,20 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
             answer_temperature=None,
             user_message_id=user_message_id,
             static_answer=prompt_q,
+        )
+
+    # Check if query is off-topic for the active persona
+    if not override_off_topic and not _is_relevant_to_persona(session_id, user_input):
+        display_mode = session_mode.replace("_", " ") if session_mode else "this mode"
+        static_answer = f"This question looks outside **{display_mode}**'s focus. Would you like to answer anyway, or switch to General chat?"
+        return _PreparedResponse(
+            messages=[],
+            mode="off_topic",
+            sources=[],
+            filed_elsewhere=False,
+            answer_temperature=None,
+            user_message_id=user_message_id,
+            static_answer=static_answer,
         )
 
     if _is_casual(user_input):
@@ -399,8 +459,9 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
     )
 
 
-def route_query(session_id: str, user_input: str, attachment: str | None = None) -> RouteResult:
-    prepared = _prepare_response(session_id, user_input, attachment=attachment)
+def route_query(session_id: str, user_input: str, attachment: str | None = None,
+                override_off_topic: bool = False) -> RouteResult:
+    prepared = _prepare_response(session_id, user_input, attachment=attachment, override_off_topic=override_off_topic)
     if prepared.static_answer is not None:
         answer = prepared.static_answer
     else:
@@ -415,7 +476,8 @@ def route_query(session_id: str, user_input: str, attachment: str | None = None)
     )
 
 
-def route_query_stream(session_id: str, user_input: str, attachment: str | None = None):
+def route_query_stream(session_id: str, user_input: str, attachment: str | None = None,
+                       override_off_topic: bool = False):
     """
     Generator version: yields small text chunks as they're generated,
     for progressive display in the UI. The full answer is still saved
@@ -424,7 +486,7 @@ def route_query_stream(session_id: str, user_input: str, attachment: str | None 
     one final {"type": "done", "mode":..., "sources":..., ...} with
     everything the frontend needs once the answer is complete.
     """
-    prepared = _prepare_response(session_id, user_input, attachment=attachment)
+    prepared = _prepare_response(session_id, user_input, attachment=attachment, override_off_topic=override_off_topic)
     full_answer = ""
 
     if prepared.static_answer is not None:

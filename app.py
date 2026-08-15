@@ -63,6 +63,7 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
     attachment: str | None = None
+    override_off_topic: bool = False
 
 
 
@@ -206,7 +207,11 @@ def move_message_endpoint(req: MoveMessageRequest) -> dict:
 def chat_endpoint(req: ChatRequest) -> ChatResponse:
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="message cannot be empty")
-    result = route_query(req.session_id, req.message, attachment=req.attachment)
+    result = route_query(
+        req.session_id, req.message,
+        attachment=req.attachment,
+        override_off_topic=req.override_off_topic,
+    )
     return ChatResponse(
         answer=result.answer, mode=result.mode, sources=result.sources,
         filed_elsewhere=result.filed_elsewhere,
@@ -222,7 +227,11 @@ def chat_stream_endpoint(req: ChatRequest):
         raise HTTPException(status_code=400, detail="message cannot be empty")
 
     def event_generator():
-        for event in route_query_stream(req.session_id, req.message, attachment=req.attachment):
+        for event in route_query_stream(
+            req.session_id, req.message,
+            attachment=req.attachment,
+            override_off_topic=req.override_off_topic,
+        ):
             yield f"data: {json_module.dumps(event)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
