@@ -3,8 +3,6 @@ from __future__ import annotations
 import fitz  # PyMuPDF
 import docx  # python-docx
 
-from core.llm import chat   # <-- add this line
-
 def extract_text_from_pdf(file_path: str) -> str:
     doc = fitz.open(file_path)
     pages = []
