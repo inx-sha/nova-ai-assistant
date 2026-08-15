@@ -29,31 +29,35 @@ def get_collection():
 
 def add_chunk(text: str, source: str, tags: list[str] | None = None,
               confidence: float = 1.0, categories: list[str] | None = None,
-              tier: str = "cache", doc_type: str = "general") -> str:
-    """..."""
+              tier: str = "cache", doc_type: str = "general",
+              expires_at: str | None = None) -> str:
+    """Stores a single chunk with embedding and metadata into ChromaDB."""
     chunk_id = str(uuid.uuid4())
     vector = embed(text)
+    meta = {
+        "source": source,
+        "tags": ",".join(tags or []),
+        "confidence": confidence,
+        "categories": ",".join(categories or ["general"]),
+        "doc_type": doc_type,
+        "tier": tier,
+        "date_collected": datetime.now(timezone.utc).isoformat(),
+        "expires_at": expires_at or "",
+    }
     with _write_lock:
         get_collection().add(
             ids=[chunk_id],
             embeddings=[vector],
             documents=[text],
-           metadatas=[{
-                "source": source,
-                "tags": ",".join(tags or []),
-                "confidence": confidence,
-                "categories": ",".join(categories or ["general"]),
-                "doc_type": doc_type,
-                "tier": tier,
-                "date_collected": datetime.now(timezone.utc).isoformat(),
-            }],
+            metadatas=[meta],
         )
     return chunk_id
 
 
 def add_chunks_batch(chunks: list[str], source: str, tags: list[str] | None = None,
                      confidence: float = 1.0, categories: list[str] | None = None,
-                     tier: str = "cache", doc_type: str = "general") -> list[str]:
+                     tier: str = "cache", doc_type: str = "general",
+                     expires_at: str | None = None) -> list[str]:
     """Stores multiple chunks in a single high-performance ChromaDB batch call."""
     if not chunks:
         return []
@@ -69,6 +73,7 @@ def add_chunks_batch(chunks: list[str], source: str, tags: list[str] | None = No
         "doc_type": doc_type,
         "tier": tier,
         "date_collected": now_iso,
+        "expires_at": expires_at or "",
     } for _ in chunks]
 
     with _write_lock:
@@ -82,7 +87,7 @@ def add_chunks_batch(chunks: list[str], source: str, tags: list[str] | None = No
 
 
 def query(text: str, top_k: int = 5, category_filter: str | None = None,
-          doc_type_filter: list[str] | None = ["general", "technical_report"]) -> list[dict]:
+          doc_type_filter: list[str] | None = ["general", "technical_report", "cloud_synthesized"]) -> list[dict]:
     """
     Returns [{"text", "metadata", "similarity"}, ...] sorted best-first.
 
@@ -92,11 +97,11 @@ def query(text: str, top_k: int = 5, category_filter: str | None = None,
     categories field.
 
     doc_type_filter restricts results to chunks whose doc_type is in the
-    given list. Defaults to ["general", "technical_report"], which excludes
-    resume-type documents from ordinary Q&A retrieval, since they can share
-    enough vocabulary with technical docs to pollute results via embedding
-    similarity alone. Pass None to disable this filtering entirely (e.g.
-    when the user is specifically asking about their resume).
+    given list. Defaults to ["general", "technical_report", "cloud_synthesized"],
+    which excludes resume-type documents from ordinary Q&A retrieval. Pass None
+    to disable this filtering entirely.
+
+    Also filters out any time-sensitive chunks whose expires_at timestamp is past.
     """
     vector = embed(text)
     filtering_active = bool(category_filter) or doc_type_filter is not None
@@ -115,6 +120,7 @@ def query(text: str, top_k: int = 5, category_filter: str | None = None,
     docs = results.get("documents", [[]])[0]
     metas = results.get("metadatas", [[]])[0]
     dists = results.get("distances", [[]])[0]
+    now_utc = datetime.now(timezone.utc)
 
     for doc, meta, dist in zip(docs, metas, dists):
         if category_filter:
@@ -124,6 +130,16 @@ def query(text: str, top_k: int = 5, category_filter: str | None = None,
         if doc_type_filter is not None:
             if meta.get("doc_type", "general") not in doc_type_filter:
                 continue
+        expires_at_str = meta.get("expires_at")
+        if expires_at_str:
+            try:
+                exp_dt = datetime.fromisoformat(expires_at_str)
+                if exp_dt.tzinfo is None:
+                    exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                if now_utc >= exp_dt:
+                    continue  # Expired chunk
+            except Exception:
+                pass
         out.append({
             "text": doc,
             "metadata": meta,

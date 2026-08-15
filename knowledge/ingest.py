@@ -44,7 +44,8 @@ def chunk_text(text: str,
 
 def ingest_text(text: str, source: str, tags: list[str] | None = None,
                  confidence: float = 1.0, categories: list[str] | None = None,
-                 tier: str = "cache", doc_type: str = "general") -> dict:
+                 tier: str = "cache", doc_type: str = "general",
+                 expires_at: str | None = None) -> dict:
     """Chunks and stores text in high-performance batch mode."""
     chunks = chunk_text(text)
     if not chunks:
@@ -62,6 +63,7 @@ def ingest_text(text: str, source: str, tags: list[str] | None = None,
 
     ids = add_chunks_batch(
         chunks, source=source, tags=tags, confidence=confidence,
-        categories=categories, tier=tier, doc_type=doc_type
+        categories=categories, tier=tier, doc_type=doc_type,
+        expires_at=expires_at
     )
     return {"chunks_stored": len(ids), "chunks_skipped_as_duplicate": 0}

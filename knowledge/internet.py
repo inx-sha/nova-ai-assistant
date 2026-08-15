@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 
 import httpx
@@ -11,6 +12,7 @@ except ImportError:
     from duckduckgo_search import DDGS  # type: ignore
 
 from core.llm import LLMError, chat
+from knowledge.cloud_llm import synthesize_answer
 
 logger = logging.getLogger("nova.internet")
 
@@ -18,6 +20,20 @@ SEARCH_MAX_RESULTS = 5
 FETCH_TOP_N = 3
 FETCH_TIMEOUT = 15.0
 MAX_PAGE_CHARS = 6000  # keep fetched text within a reasonable prompt size
+
+TIME_SENSITIVE_PATTERNS = [
+    r"\btoday\b", r"\blatest\b", r"\bcurrent\b", r"\bcurrently\b",
+    r"\bright now\b", r"\bthis week\b", r"\bthis month\b", r"\bthis year\b",
+    r"\btonight\b", r"\byesterday\b", r"\btomorrow\b", r"\brecent\b",
+    r"\bbreaking\b", r"\bprice\b", r"\bprices\b", r"\bstock\b",
+    r"\bcrypto\b", r"\bweather\b", r"\bnews\b", r"\bscore\b", r"\bscores\b",
+]
+
+
+def is_time_sensitive(query: str) -> bool:
+    """Detects whether a query is time-sensitive (news, prices, current events)."""
+    q_lower = query.lower()
+    return any(re.search(pat, q_lower) for pat in TIME_SENSITIVE_PATTERNS)
 
 
 @dataclass
@@ -32,6 +48,8 @@ class ResearchOutcome:
     summary: str
     confidence: float
     sources: list[str]
+    doc_type: str = "general"
+    expires_at: str | None = None
 
 
 def search_web(query: str, max_results: int = SEARCH_MAX_RESULTS) -> list[SearchResult]:
@@ -83,7 +101,14 @@ def fetch_page_text(url: str) -> str | None:
         return None
 
 
-def research_topic(query: str) -> ResearchOutcome | None:
+def research_topic(query: str, allow_cloud: bool = False, ttl_hours: int = 24) -> ResearchOutcome | None:
+    """
+    Researches a topic using web search.
+
+    If allow_cloud=True and ANTHROPIC_API_KEY is configured, passes search snippets
+    to Anthropic Claude Haiku for clean synthesis. Otherwise, falls back to local
+    verification and summarization.
+    """
     try:
         results = search_web(query)
     except Exception as e:
@@ -97,6 +122,23 @@ def research_topic(query: str) -> ResearchOutcome | None:
     if not usable:
         return None
 
+    time_sens = is_time_sensitive(query)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).isoformat() if time_sens else None
+
+    # Try cloud synthesis first if allowed
+    if allow_cloud:
+        raw_snippets = [f"{r.title}: {r.snippet}" for r in usable]
+        cloud_summary = synthesize_answer(query, raw_snippets)
+        if cloud_summary:
+            return ResearchOutcome(
+                summary=cloud_summary,
+                confidence=1.0,
+                sources=[r.url for r in usable],
+                doc_type="cloud_synthesized",
+                expires_at=expires_at,
+            )
+
+    # Local fallback verification path
     sources_block = "\n\n---\n\n".join(
         f"SOURCE: {r.url}\nTITLE: {r.title}\n{r.snippet}" for r in usable
     )
@@ -146,7 +188,7 @@ def research_topic(query: str) -> ResearchOutcome | None:
     else:
         summary = clean_response
 
-    # Clean leading labels (e.g. "**SUMMARY:** ", "Summary: ", etc.) without stripping actual sentences
+    # Clean leading labels without stripping actual sentences
     summary = re.sub(r"^(?:\*\*|\*|#)*\s*(?:SUMMARY|ANSWER)\s*(?:\*\*|\*|#)*\s*[:\-]\s*(?:\*\*|\*|#)*\s*", "", summary, flags=re.IGNORECASE).strip()
     summary = re.sub(r"^(?:\*\*|\*|#)+\s*(?:SUMMARY|ANSWER)\s*(?:\*\*|\*|#)+\s*", "", summary, flags=re.IGNORECASE).strip()
     summary = re.sub(r"^\*+\s*", "", summary).strip()
@@ -159,6 +201,8 @@ def research_topic(query: str) -> ResearchOutcome | None:
         summary=summary,
         confidence=confidence,
         sources=[r.url for r in usable],
+        doc_type="general",
+        expires_at=expires_at,
     )
 
 
