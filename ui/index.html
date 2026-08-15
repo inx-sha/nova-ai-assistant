@@ -2261,70 +2261,75 @@ async function loadCurrentSessionFiles() {
 }
 
 async function loadDashboard() {
-  const res = await fetch("/knowledge/dashboard");
-  const stats = await res.json();
-
   dashboardBody.innerHTML = "";
+  try {
+    const res = await fetch("/knowledge/dashboard");
+    if (!res.ok) throw new Error("Failed to fetch dashboard data");
+    const stats = await res.json();
 
-  const totalDiv = document.createElement("div");
-  totalDiv.style.cssText = "font-size:2em;font-weight:700;margin:6px 0 2px;color:var(--color-text);";
-  totalDiv.textContent = stats.total_chunks;
-  dashboardBody.appendChild(totalDiv);
+    const totalDiv = document.createElement("div");
+    totalDiv.style.cssText = "font-size:2em;font-weight:700;margin:6px 0 2px;color:var(--color-text);";
+    totalDiv.textContent = stats.total_chunks;
+    dashboardBody.appendChild(totalDiv);
 
-  const totalLabel = document.createElement("div");
-  totalLabel.style.cssText = "font-size:0.85em;color:var(--color-text-faint);margin-bottom:14px;";
-  totalLabel.textContent = "things NOVA has learned";
-  dashboardBody.appendChild(totalLabel);
+    const totalLabel = document.createElement("div");
+    totalLabel.style.cssText = "font-size:0.85em;color:var(--color-text-faint);margin-bottom:14px;";
+    totalLabel.textContent = "things NOVA has learned";
+    dashboardBody.appendChild(totalLabel);
 
-  const confDiv = document.createElement("div");
-  confDiv.style.cssText = "font-size:0.88em;color:var(--color-text-muted);margin-bottom:14px;padding:8px 12px;background:var(--color-surface-2);border-radius:var(--radius-md);border:1px solid var(--color-border);";
-  const confPct = stats.average_confidence * 100;
-  const confLabel = confPct >= 85 ? "Very confident" : confPct >= 65 ? "Fairly confident" : "Still learning";
-  confDiv.textContent = `How sure NOVA is about what it knows: ${confLabel}`;
-  dashboardBody.appendChild(confDiv);
+    const confDiv = document.createElement("div");
+    confDiv.style.cssText = "font-size:0.88em;color:var(--color-text-muted);margin-bottom:14px;padding:8px 12px;background:var(--color-surface-2);border-radius:var(--radius-md);border:1px solid var(--color-border);";
+    const confPct = stats.average_confidence * 100;
+    const confLabel = confPct >= 85 ? "Very confident" : confPct >= 65 ? "Fairly confident" : "Still learning";
+    confDiv.textContent = `How sure NOVA is about what it knows: ${confLabel}`;
+    dashboardBody.appendChild(confDiv);
 
-  const tierLabels = { cache: "Recently learned", pinned: "Saved by you", pack: "Core knowledge" };
-  const tierHeading = document.createElement("div");
-  tierHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-text);margin-top:12px;margin-bottom:6px;";
-  tierHeading.textContent = "What kind of knowledge";
-  dashboardBody.appendChild(tierHeading);
-  for (const [tier, count] of Object.entries(stats.by_tier)) {
-    const row = document.createElement("div");
-    row.style.cssText = "font-size:0.85em;color:var(--color-text);display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--color-border);";
-    row.innerHTML = `<span>${tierLabels[tier] || tier}</span><span style="font-weight:600;">${count}</span>`;
-    dashboardBody.appendChild(row);
+    const tierLabels = { cache: "Recently learned", pinned: "Saved by you", pack: "Core knowledge" };
+    const tierHeading = document.createElement("div");
+    tierHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-text);margin-top:12px;margin-bottom:6px;";
+    tierHeading.textContent = "What kind of knowledge";
+    dashboardBody.appendChild(tierHeading);
+    for (const [tier, count] of Object.entries(stats.by_tier)) {
+      const row = document.createElement("div");
+      row.style.cssText = "font-size:0.85em;color:var(--color-text);display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--color-border);";
+      row.innerHTML = `<span>${tierLabels[tier] || tier}</span><span style="font-weight:600;">${count}</span>`;
+      dashboardBody.appendChild(row);
+    }
+
+    const catHeading = document.createElement("div");
+    catHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-text);margin-top:14px;margin-bottom:6px;";
+    catHeading.textContent = "By category";
+    dashboardBody.appendChild(catHeading);
+    const sortedCats = Object.entries(stats.by_category).sort((a, b) => b[1] - a[1]);
+    for (const [cat, count] of sortedCats) {
+      const row = document.createElement("div");
+      row.style.cssText = "font-size:0.85em;color:var(--color-text);display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--color-border);";
+      row.innerHTML = `<span>${cat.replace(/_/g, " ")}</span><span style="font-weight:600;">${count}</span>`;
+      dashboardBody.appendChild(row);
+    }
+
+    const growthHeading = document.createElement("div");
+    growthHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-text);margin-top:14px;margin-bottom:6px;";
+    growthHeading.textContent = "Learning activity this week";
+    dashboardBody.appendChild(growthHeading);
+
+    const chartDiv = document.createElement("div");
+    chartDiv.style.cssText = "display:flex;align-items:flex-end;gap:5px;height:65px;margin-top:8px;padding:8px;background:var(--color-surface-2);border-radius:var(--radius-md);border:1px solid var(--color-border);";
+    const growthEntries = Object.entries(stats.growth_last_14_days);
+    const maxCount = Math.max(...growthEntries.map(([, c]) => c), 1);
+    for (const [day, count] of growthEntries) {
+      const bar = document.createElement("div");
+      const heightPct = (count / maxCount) * 100;
+      bar.style.cssText = `flex:1;background:var(--color-primary);border-radius:2px 2px 0 0;height:${heightPct}%;min-height:2px;`;
+      const friendlyDate = new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      bar.title = `${friendlyDate}: learned ${count} new thing${count === 1 ? '' : 's'}`;
+      chartDiv.appendChild(bar);
+    }
+    dashboardBody.appendChild(chartDiv);
+  } catch (err) {
+    console.error("Could not load knowledge dashboard:", err);
+    dashboardBody.innerHTML = '<div style="color:var(--color-text-faint);padding:24px 12px;text-align:center;font-size:0.88em;">Unable to load knowledge dashboard.</div>';
   }
-
-  const catHeading = document.createElement("div");
-  catHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-text);margin-top:14px;margin-bottom:6px;";
-  catHeading.textContent = "By category";
-  dashboardBody.appendChild(catHeading);
-  const sortedCats = Object.entries(stats.by_category).sort((a, b) => b[1] - a[1]);
-  for (const [cat, count] of sortedCats) {
-    const row = document.createElement("div");
-    row.style.cssText = "font-size:0.85em;color:var(--color-text);display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--color-border);";
-    row.innerHTML = `<span>${cat.replace(/_/g, " ")}</span><span style="font-weight:600;">${count}</span>`;
-    dashboardBody.appendChild(row);
-  }
-
-  const growthHeading = document.createElement("div");
-  growthHeading.style.cssText = "font-weight:600;font-size:0.9em;color:var(--color-text);margin-top:14px;margin-bottom:6px;";
-  growthHeading.textContent = "Learning activity this week";
-  dashboardBody.appendChild(growthHeading);
-
-  const chartDiv = document.createElement("div");
-  chartDiv.style.cssText = "display:flex;align-items:flex-end;gap:5px;height:65px;margin-top:8px;padding:8px;background:var(--color-surface-2);border-radius:var(--radius-md);border:1px solid var(--color-border);";
-  const growthEntries = Object.entries(stats.growth_last_14_days);
-  const maxCount = Math.max(...growthEntries.map(([, c]) => c), 1);
-  for (const [day, count] of growthEntries) {
-    const bar = document.createElement("div");
-    const heightPct = (count / maxCount) * 100;
-    bar.style.cssText = `flex:1;background:var(--color-primary);border-radius:2px 2px 0 0;height:${heightPct}%;min-height:2px;`;
-    const friendlyDate = new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    bar.title = `${friendlyDate}: learned ${count} new thing${count === 1 ? '' : 's'}`;
-    chartDiv.appendChild(bar);
-  }
-  dashboardBody.appendChild(chartDiv);
 }
 
 function closeAllPanels() {
@@ -2367,9 +2372,15 @@ headerFilesItem.addEventListener("click", async (e) => {
 let starredData = null;
 
 async function loadStarred() {
-  const res = await fetch("/starred");
-  starredData = (await res.json()).starred_by_mode;
-  renderStarredPanel();
+  try {
+    const res = await fetch("/starred");
+    if (!res.ok) throw new Error("Failed to fetch starred messages");
+    starredData = (await res.json()).starred_by_mode;
+    renderStarredPanel();
+  } catch (err) {
+    console.error("Could not load starred messages:", err);
+    starredBody.innerHTML = '<div style="color:var(--color-text-faint);padding:16px 12px;text-align:center;font-size:0.88em;">Unable to load starred messages.</div>';
+  }
 }
 
 function renderStarredPanel() {
@@ -3254,27 +3265,37 @@ archivedToggleBtn.addEventListener("click", () => {
 loadSidebarModeFilterOptions();
 
 async function loadModes() {
-  const res = await fetch("/modes");
-  const data = await res.json();
-  modeSelect.innerHTML = "";
-  for (const m of data.modes) {
-    const opt = document.createElement("option");
-    opt.value = m;
-    opt.textContent = m === "general" ? "General" : m.replace(/_/g, " ");
-    modeSelect.appendChild(opt);
+  try {
+    const res = await fetch("/modes");
+    if (!res.ok) throw new Error("Failed to fetch modes");
+    const data = await res.json();
+    modeSelect.innerHTML = "";
+    for (const m of data.modes) {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m === "general" ? "General" : m.replace(/_/g, " ");
+      modeSelect.appendChild(opt);
+    }
+    syncModeSelect();
+  } catch (err) {
+    console.error("Could not load modes:", err);
   }
-  syncModeSelect();
 }
 
 async function syncModeSelect() {
-  const res = await fetch("/sessions");
-  const data = await res.json();
-  const current = data.sessions.find(s => s.session_id === sessionId);
-  const modeVal = current ? current.mode : "general";
-  modeSelect.value = modeVal;
-  const promptModeName = document.getElementById("promptModeName");
-  if (promptModeName) {
-    promptModeName.textContent = modeVal === "general" ? "General" : modeVal.replace(/_/g, " ");
+  try {
+    const res = await fetch("/sessions");
+    if (!res.ok) throw new Error("Failed to fetch sessions for mode sync");
+    const data = await res.json();
+    const current = data.sessions.find(s => s.session_id === sessionId);
+    const modeVal = current ? current.mode : "general";
+    modeSelect.value = modeVal;
+    const promptModeName = document.getElementById("promptModeName");
+    if (promptModeName) {
+      promptModeName.textContent = modeVal === "general" ? "General" : modeVal.replace(/_/g, " ");
+    }
+  } catch (err) {
+    console.error("Could not sync mode select:", err);
   }
 }
 
