@@ -39,7 +39,8 @@ PERSONA_TEMPLATES: dict[str, PersonaTemplate] = {
         keywords=[
             "law", "legal", "contract", "liability", "clause", "statute", "court", "compliance",
             "rights", "damages", "jurisdiction", "agreement", "regulation", "tort", "attorney",
-            "prosecution", "litigation", "claim", "plaintiff", "defendant", "settlement"
+            "prosecution", "litigation", "claim", "plaintiff", "defendant", "settlement",
+            "landlord", "tenant", "lease", "deposit", "eviction", "dispute", "sue", "lawsuit"
         ],
         anchor_phrase="legal questions, contract law, regulations, legal rights, liability, statutes, and legal compliance",
         subject_clause_format=", specializing in {subject}",

@@ -177,7 +177,8 @@ SUBJECT_SPECIFIC_KEYWORDS: dict[str, list[str]] = {
     "law": [
         "law", "legal", "contract", "liability", "clause", "statute", "court", "compliance",
         "rights", "damages", "jurisdiction", "agreement", "regulation", "tort", "attorney",
-        "prosecution", "litigation", "claim", "plaintiff", "defendant", "settlement"
+        "prosecution", "litigation", "claim", "plaintiff", "defendant", "settlement",
+        "landlord", "tenant", "lease", "deposit", "eviction", "dispute", "sue", "lawsuit"
     ],
 }
 
