@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from core import memory
 from core.llm import chat, chat_stream, embed
+from core.personas import get_persona
 from knowledge.store import query as knowledge_query
 from knowledge.internet import research_topic
 from knowledge.ingest import ingest_text
@@ -33,8 +34,16 @@ BASE_SYSTEM_PROMPT = (
 )
 
 
-def _build_system_prompt() -> str:
+def _build_system_prompt(session_id: str | None = None) -> str:
     parts = [BASE_SYSTEM_PROMPT]
+
+    if session_id:
+        persona_id, persona_subject = memory.get_session_persona(session_id)
+        template = get_persona(persona_id)
+        if template:
+            subject_clause = f" in {persona_subject}" if (persona_subject and persona_subject.strip()) else ""
+            persona_text = template.system_prompt.replace("{subject_clause}", subject_clause)
+            parts.append(f"\nPersona Directives ({template.name}):\n{persona_text}")
 
     facts = get_all_personal_facts()
     confirmed_facts = [f for f in facts if f.get("confirmed_by_user")]
@@ -218,6 +227,7 @@ class _PreparedResponse:
     filed_elsewhere: bool
     answer_temperature: float | None
     user_message_id: int
+    static_answer: str | None = None
 
 
 def _prepare_response(session_id: str, user_input: str, attachment: str | None = None) -> _PreparedResponse:
@@ -226,10 +236,25 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
     user_message_id = memory.add_message(session_id, "user", user_input, attachment=attachment)
     outcome = None
 
+    # Check if session has a persona that requires a subject, but none is set yet
+    persona_id, persona_subject = memory.get_session_persona(session_id)
+    persona_tmpl = get_persona(persona_id)
+    if persona_tmpl and persona_tmpl.requires_subject and not (persona_subject and persona_subject.strip()):
+        prompt_q = persona_tmpl.subject_prompt or "Please specify which subject or topic you'd like to focus on."
+        return _PreparedResponse(
+            messages=[],
+            mode="needs_subject",
+            sources=[],
+            filed_elsewhere=False,
+            answer_temperature=None,
+            user_message_id=user_message_id,
+            static_answer=prompt_q,
+        )
+
     if _is_casual(user_input):
         recent = memory.get_recent_messages(session_id, limit=5)
         messages = [
-            {"role": "system", "content": _build_system_prompt()},
+            {"role": "system", "content": _build_system_prompt(session_id)},
             *recent,
             {"role": "user", "content": user_input},
             {"role": "assistant", "content": "<think>\n</think>"}
@@ -257,7 +282,7 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
         # Limit recent context to last 2 relevant turns to avoid token bloat/slow prefill
         recent = memory.get_recent_messages(session_id, limit=2)
         clean_recent = [r for r in recent if r.get("content", "").strip() and r["content"] != user_input]
-        messages = [{"role": "system", "content": _build_system_prompt()}, *clean_recent,
+        messages = [{"role": "system", "content": _build_system_prompt(session_id)}, *clean_recent,
                     {"role": "user", "content": prompt}]
         return _PreparedResponse(
             messages=messages, mode=mode, sources=sources, filed_elsewhere=False,
@@ -350,7 +375,7 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
 
     history_limit = 0 if mode in ("high_confidence", "broad_confidence", "learned_from_internet") else 10
     recent = memory.get_recent_messages(session_id, limit=history_limit) if history_limit else []
-    messages = [{"role": "system", "content": _build_system_prompt()}, *recent,
+    messages = [{"role": "system", "content": _build_system_prompt(session_id)}, *recent,
                 {"role": "user", "content": prompt}]
 
     answer_temperature = 0.1 if mode in ("high_confidence", "broad_confidence", "learned_from_internet") else None
@@ -376,7 +401,10 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
 
 def route_query(session_id: str, user_input: str, attachment: str | None = None) -> RouteResult:
     prepared = _prepare_response(session_id, user_input, attachment=attachment)
-    answer = chat(prepared.messages, temperature=prepared.answer_temperature)
+    if prepared.static_answer is not None:
+        answer = prepared.static_answer
+    else:
+        answer = chat(prepared.messages, temperature=prepared.answer_temperature)
     assistant_message_id = memory.add_message(session_id, "assistant", answer)
 
     return RouteResult(
@@ -399,9 +427,13 @@ def route_query_stream(session_id: str, user_input: str, attachment: str | None 
     prepared = _prepare_response(session_id, user_input, attachment=attachment)
     full_answer = ""
 
-    for chunk in chat_stream(prepared.messages, temperature=prepared.answer_temperature):
-        full_answer += chunk
-        yield {"type": "chunk", "text": chunk}
+    if prepared.static_answer is not None:
+        full_answer = prepared.static_answer
+        yield {"type": "chunk", "text": full_answer}
+    else:
+        for chunk in chat_stream(prepared.messages, temperature=prepared.answer_temperature):
+            full_answer += chunk
+            yield {"type": "chunk", "text": chunk}
 
     assistant_message_id = memory.add_message(session_id, "assistant", full_answer)
 
