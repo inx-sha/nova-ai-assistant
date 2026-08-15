@@ -1121,7 +1121,7 @@
     box-shadow: var(--shadow-popover);
     animation: fadeUp 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
   }
-  #settingsModal { width: 400px; max-width: calc(100vw - 32px); padding: 18px 20px; }
+  #settingsModal { width: 420px; max-width: calc(100vw - 32px); padding: 18px 20px; }
   #searchSheet { width: min(540px, 100%); padding: 18px 20px; }
   #dashboardModal { width: min(560px, 100%); max-height: min(680px, calc(100vh - 48px)); padding: 22px 24px; display: flex; flex-direction: column; }
   #dashboardBody { overflow-y: auto; flex: 1; margin-top: 10px; padding-right: 4px; }
@@ -1148,6 +1148,55 @@
   .settings-row-label svg { width: 18px; height: 18px; stroke: currentColor; color: var(--color-text-muted); flex-shrink: 0; }
   .settings-row-title { font-size: 0.9em; font-weight: 600; color: var(--color-text); }
   .settings-row-desc { font-size: 0.78em; color: var(--color-text-faint); margin-top: 2px; }
+
+  .settings-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .settings-select {
+    max-width: 175px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    color: var(--color-text);
+    font-size: 0.82em;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color var(--transition-fast), opacity var(--transition-fast);
+  }
+  .settings-select:hover:not(:disabled) {
+    border-color: var(--color-line-strong);
+  }
+  .settings-select:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  .settings-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .settings-status-icon {
+    display: none;
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .settings-status-icon.active {
+    display: inline-flex;
+  }
+  .settings-status-icon svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+  }
 
   #searchInput {
     width: 100%;
@@ -1362,6 +1411,20 @@
       <button id="dashboardBtn" class="icon-btn" aria-label="Knowledge dashboard" title="Knowledge dashboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="11"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="19" y1="20" x2="19" y2="14"/></svg>
       </button>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+        <div>
+          <div class="settings-row-title">AI model</div>
+          <div class="settings-row-desc" id="modelRowDesc">Choose local Ollama model</div>
+        </div>
+      </div>
+      <div class="settings-select-wrap">
+        <select id="modelSelect" class="settings-select" aria-label="AI model"></select>
+        <span id="modelStatusIcon" class="settings-status-icon" aria-hidden="true"></span>
+      </div>
     </div>
 
     <div class="settings-row">
@@ -2039,7 +2102,7 @@ function getFileIcon(filename) {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`;
   }
   if (lower.endsWith(".docx") || lower.endsWith(".doc")) {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>`;
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
   }
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
 }
@@ -2396,6 +2459,13 @@ attachmentClear.addEventListener("click", () => {
   renderAttachmentPreview();
 });
 
+function updateModelSelectDisabledState() {
+  const select = document.getElementById("modelSelect");
+  if (!select) return;
+  const isSwitching = select.dataset.switching === "true";
+  select.disabled = isStreamingResponse || isSwitching;
+}
+
 function updateSendButtonState() {
   if (isStreamingResponse) {
     sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>`;
@@ -2408,6 +2478,7 @@ function updateSendButtonState() {
     sendBtn.title = "Send message";
     sendBtn.classList.remove("danger");
   }
+  updateModelSelectDisabledState();
 }
 
 function stopCurrentResponse({ restorePrompt = true, reason = "Response paused. Edit your prompt and send again." } = {}) {
@@ -3268,12 +3339,109 @@ fileInput.addEventListener("change", async () => {
   fileInput.value = "";
 });
 
+const modelSelect = document.getElementById("modelSelect");
+const modelStatusIcon = document.getElementById("modelStatusIcon");
+const modelRowDesc = document.getElementById("modelRowDesc");
+let currentActiveModel = "";
+
+async function loadModels() {
+  if (!modelSelect) return;
+  try {
+    const res = await fetch("/models");
+    if (!res.ok) throw new Error("Failed to load models");
+    const data = await res.json();
+    const models = data.models || [];
+    currentActiveModel = data.current_model || "";
+
+    modelSelect.innerHTML = "";
+    if (models.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No models found";
+      modelSelect.appendChild(opt);
+      modelSelect.disabled = true;
+      if (modelRowDesc) modelRowDesc.textContent = "No models available in Ollama";
+      return;
+    }
+
+    for (const m of models) {
+      const opt = document.createElement("option");
+      opt.value = m.name;
+      opt.textContent = `${m.name} — ${m.size_gb} GB`;
+      if (m.name === currentActiveModel) {
+        opt.selected = true;
+      }
+      modelSelect.appendChild(opt);
+    }
+
+    if (currentActiveModel) {
+      modelSelect.value = currentActiveModel;
+      if (modelRowDesc) modelRowDesc.textContent = `Using ${currentActiveModel}`;
+    }
+    updateModelSelectDisabledState();
+  } catch (err) {
+    if (modelRowDesc) modelRowDesc.textContent = "Error loading models";
+  }
+}
+
+if (modelSelect) {
+  modelSelect.addEventListener("change", async () => {
+    const newModel = modelSelect.value;
+    if (!newModel || newModel === currentActiveModel) return;
+
+    const previousModel = currentActiveModel;
+    modelSelect.dataset.switching = "true";
+    updateModelSelectDisabledState();
+
+    if (modelStatusIcon) {
+      modelStatusIcon.innerHTML = ICONS.spinner;
+      modelStatusIcon.style.color = "var(--color-text-muted)";
+      modelStatusIcon.classList.add("active");
+    }
+
+    try {
+      const res = await fetch("/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: newModel }),
+      });
+      if (!res.ok) throw new Error("Model switch failed");
+
+      currentActiveModel = newModel;
+      if (modelRowDesc) modelRowDesc.textContent = `Using ${newModel}`;
+
+      if (modelStatusIcon) {
+        modelStatusIcon.innerHTML = ICONS.check;
+        modelStatusIcon.style.color = "var(--color-success)";
+      }
+    } catch (err) {
+      modelSelect.value = previousModel;
+      if (modelRowDesc) modelRowDesc.textContent = `Using ${previousModel}`;
+
+      if (modelStatusIcon) {
+        modelStatusIcon.innerHTML = ICONS.alert;
+        modelStatusIcon.style.color = "var(--color-error)";
+      }
+    } finally {
+      setTimeout(() => {
+        if (modelStatusIcon) {
+          modelStatusIcon.classList.remove("active");
+          modelStatusIcon.innerHTML = "";
+        }
+        delete modelSelect.dataset.switching;
+        updateModelSelectDisabledState();
+      }, 2500);
+    }
+  });
+}
+
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsOverlay = document.getElementById("settingsOverlay");
 const settingsCloseBtn = document.getElementById("settingsCloseBtn");
 
 function openSettings() {
   settingsOverlay.classList.add("open");
+  loadModels();
   settingsCloseBtn.focus();
 }
 function closeSettings() {
@@ -3423,6 +3591,7 @@ document.querySelectorAll(".example-chip").forEach(chip => {
 
 async function init() {
   await loadModes();
+  await loadModels();
   await loadHistory(sessionId);
   await loadSessions();
   await loadPinned();
