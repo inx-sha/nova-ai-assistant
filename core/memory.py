@@ -114,6 +114,7 @@ def init_db() -> None:
         _migrate_add_column(conn, "sessions", "starred", "INTEGER NOT NULL DEFAULT 0")
         _migrate_add_column(conn, "sessions", "persona", "TEXT")
         _migrate_add_column(conn, "sessions", "persona_subject", "TEXT")
+        _migrate_add_column(conn, "sessions", "allow_cloud_enrichment", "INTEGER NOT NULL DEFAULT 0")
 
 
 def _migrate_add_column(conn, table: str, column: str, definition: str) -> None:
@@ -310,7 +311,7 @@ def get_all_sessions(include_archived: bool = False) -> list[dict]:
                 "persona_subject": r["persona_subject"],
             }
             for r in conn.execute(
-                "SELECT session_id, mode, archived, pinned, starred, persona, persona_subject FROM sessions"
+                "SELECT session_id, mode, archived, pinned, starred, persona, persona_subject, allow_cloud_enrichment FROM sessions"
             ).fetchall()
         }
 
@@ -318,7 +319,7 @@ def get_all_sessions(include_archived: bool = False) -> list[dict]:
     for r in rows:
         meta = session_meta.get(r["session_id"], {
             "mode": "general", "archived": 0, "pinned": 0, "starred": 0,
-            "persona": None, "persona_subject": None,
+            "persona": None, "persona_subject": None, "allow_cloud_enrichment": 0,
         })
         if not include_archived and meta["archived"]:
             continue
@@ -333,6 +334,7 @@ def get_all_sessions(include_archived: bool = False) -> list[dict]:
             "starred": bool(meta["starred"]),
             "persona": meta.get("persona"),
             "persona_subject": meta.get("persona_subject"),
+            "allow_cloud_enrichment": bool(meta.get("allow_cloud_enrichment", 0)),
         })
     return sessions
 
@@ -371,7 +373,8 @@ def get_session_files(session_id: str) -> list[dict]:
 # --- Session metadata ---
 
 def ensure_session(session_id: str, mode: str = "general", persona: str | None = None,
-                   persona_subject: str | None = None) -> None:
+                   persona_subject: str | None = None,
+                   allow_cloud_enrichment: bool = False) -> None:
     """Creates a session row if it doesn't exist yet. No-op otherwise."""
     now = _now()
     with get_conn() as conn:
@@ -380,9 +383,9 @@ def ensure_session(session_id: str, mode: str = "general", persona: str | None =
         ).fetchone()
         if not existing:
             conn.execute(
-                "INSERT INTO sessions (session_id, mode, archived, persona, persona_subject, created_at, updated_at) "
-                "VALUES (?, ?, 0, ?, ?, ?, ?)",
-                (session_id, mode, persona, persona_subject, now, now),
+                "INSERT INTO sessions (session_id, mode, archived, persona, persona_subject, allow_cloud_enrichment, created_at, updated_at) "
+                "VALUES (?, ?, 0, ?, ?, ?, ?, ?)",
+                (session_id, mode, persona, persona_subject, int(allow_cloud_enrichment), now, now),
             )
 
 
@@ -413,6 +416,17 @@ def set_session_persona(session_id: str, persona: str | None, persona_subject: s
         )
 
 
+def get_session_cloud_enrichment(session_id: str) -> bool:
+    """Returns True if the session has allow_cloud_enrichment enabled, False otherwise."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT allow_cloud_enrichment FROM sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+    if row and "allow_cloud_enrichment" in row.keys() and row["allow_cloud_enrichment"] is not None:
+        return bool(row["allow_cloud_enrichment"])
+    return False
+
+
 def set_session_archived(session_id: str, archived: bool) -> None:
     with get_conn() as conn:
         conn.execute(
@@ -437,18 +451,23 @@ def set_session_starred(session_id: str, starred: bool) -> None:
         )
 
 
-def set_session_mode(session_id: str, mode: str, persona: str | None = None, persona_subject: str | None = None) -> None:
+def set_session_mode(session_id: str, mode: str, persona: str | None = None,
+                     persona_subject: str | None = None,
+                     allow_cloud_enrichment: bool | None = None) -> None:
     with get_conn() as conn:
+        updates = ["mode = ?", "updated_at = ?"]
+        params = [mode, _now()]
         if persona is not None or persona_subject is not None:
-            conn.execute(
-                "UPDATE sessions SET mode = ?, persona = ?, persona_subject = ?, updated_at = ? WHERE session_id = ?",
-                (mode, persona, persona_subject, _now(), session_id),
-            )
-        else:
-            conn.execute(
-                "UPDATE sessions SET mode = ?, updated_at = ? WHERE session_id = ?",
-                (mode, _now(), session_id),
-            )
+            updates.extend(["persona = ?", "persona_subject = ?"])
+            params.extend([persona, persona_subject])
+        if allow_cloud_enrichment is not None:
+            updates.append("allow_cloud_enrichment = ?")
+            params.append(int(allow_cloud_enrichment))
+        params.append(session_id)
+        conn.execute(
+            f"UPDATE sessions SET {', '.join(updates)} WHERE session_id = ?",
+            tuple(params),
+        )
 
 def get_all_distinct_modes() -> list[str]:
     with get_conn() as conn:

@@ -126,6 +126,7 @@ class SessionInfo(BaseModel):
     starred: bool = False
     persona: str | None = None
     persona_subject: str | None = None
+    allow_cloud_enrichment: bool = False
 
 
 class SessionsListResponse(BaseModel):
@@ -142,6 +143,7 @@ class SetModeRequest(BaseModel):
     mode: str
     persona: str | None = None
     persona_subject: str | None = None
+    allow_cloud_enrichment: bool = False
 
 class MessageActionRequest(BaseModel):
     message_id: int
@@ -431,13 +433,16 @@ def get_personas_endpoint() -> dict:
 @app.post("/sessions/{session_id}/mode")
 def set_session_mode_endpoint(session_id: str, req: SetModeRequest) -> dict:
     from core.memory import ensure_session
-    ensure_session(session_id, mode=req.mode, persona=req.persona, persona_subject=req.persona_subject)
-    _set_session_mode(session_id, req.mode, persona=req.persona, persona_subject=req.persona_subject)
+    ensure_session(session_id, mode=req.mode, persona=req.persona, persona_subject=req.persona_subject,
+                   allow_cloud_enrichment=req.allow_cloud_enrichment)
+    _set_session_mode(session_id, req.mode, persona=req.persona, persona_subject=req.persona_subject,
+                      allow_cloud_enrichment=req.allow_cloud_enrichment)
     return {
         "session_id": session_id,
         "mode": req.mode,
         "persona": req.persona,
         "persona_subject": req.persona_subject,
+        "allow_cloud_enrichment": req.allow_cloud_enrichment,
     }
 
 @app.post("/messages/pin")

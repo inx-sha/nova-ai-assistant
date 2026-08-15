@@ -464,7 +464,8 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
         mode = "persona"
         prompt = user_input
     else:
-        outcome = research_topic(user_input)
+        allow_cloud = memory.get_session_cloud_enrichment(session_id)
+        outcome = research_topic(user_input, allow_cloud=allow_cloud)
 
         if outcome is None:
             mode = "no_local_answer"
@@ -478,12 +479,17 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
                 f"Question: {user_input}"
             )
         else:
+            tags = ["web-research"]
+            if getattr(outcome, "doc_type", "general") == "cloud_synthesized":
+                tags.append("cloud-synthesized")
             ingest_text(
                 outcome.summary,
                 source=f"web_research:{outcome.sources[0]}",
-                tags=["web-research"],
+                tags=tags,
                 confidence=outcome.confidence,
                 categories=["general"],
+                doc_type=getattr(outcome, "doc_type", "general"),
+                expires_at=getattr(outcome, "expires_at", None),
             )
             mode = "learned_from_internet"
             prompt = (
