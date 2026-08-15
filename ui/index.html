@@ -42,6 +42,14 @@
     --color-star: #eab308;
     --color-star-soft: rgba(234, 179, 8, 0.14);
 
+    --syntax-keyword: #8250df;
+    --syntax-string: #0a7b44;
+    --syntax-comment: #6e7781;
+    --syntax-number: #0550ae;
+    --syntax-builtin: #953800;
+    --syntax-property: #0550ae;
+    --syntax-variable: #953800;
+
     --shadow-hairline: 0 0 0 1px var(--color-line);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--color-line);
     --shadow-raised: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--color-line);
@@ -91,6 +99,14 @@
     --color-info-tint: rgba(255, 255, 255, 0.08);
     --color-star: #facc15;
     --color-star-soft: rgba(250, 204, 21, 0.16);
+
+    --syntax-keyword: #d2a8ff;
+    --syntax-string: #7ee787;
+    --syntax-comment: #8b949e;
+    --syntax-number: #79c0ff;
+    --syntax-builtin: #ffa657;
+    --syntax-property: #79c0ff;
+    --syntax-variable: #ffa657;
 
     --shadow-hairline: 0 0 0 1px var(--color-line);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--color-line);
@@ -779,6 +795,46 @@
   .md-content blockquote { border-left: 3px solid var(--color-text-muted); margin: 0.8em 0; padding: 4px 14px; color: var(--color-text-muted); background: var(--color-surface-2); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
   .md-content a { color: var(--color-text); text-decoration: underline; text-underline-offset: 2px; }
   .md-content strong { font-weight: 700; color: var(--color-text); }
+  .md-table-wrap {
+    overflow-x: auto;
+    margin: 0.8em 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+  }
+  .md-content table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88em;
+    text-align: left;
+  }
+  .md-content th {
+    background: var(--color-surface-2);
+    color: var(--color-text);
+    font-weight: 600;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .md-content td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+  }
+  .md-content tr:last-child td {
+    border-bottom: none;
+  }
+  .md-content tr:hover td {
+    background: var(--color-surface-hover);
+  }
+
+  .tok-kw { color: var(--syntax-keyword); font-weight: 600; }
+  .tok-str { color: var(--syntax-string); }
+  .tok-comment { color: var(--syntax-comment); font-style: italic; }
+  .tok-num { color: var(--syntax-number); }
+  .tok-builtin { color: var(--syntax-builtin); }
+  .tok-prop { color: var(--syntax-property); font-weight: 600; }
+  .tok-var { color: var(--syntax-variable); }
+  .tok-flag { color: var(--syntax-number); }
 
   /* --- Beautiful UI Thinking Primitive --- */
   .thinking-target {
@@ -1638,9 +1694,86 @@ function renderInline(text) {
   return text;
 }
 
+function splitTableRow(rowStr) {
+  let trimmed = rowStr.trim();
+  if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
+  if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
+  return trimmed.split("|").map(cell => cell.trim());
+}
+
+function isTableSeparator(line) {
+  return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(line);
+}
+
+function isTableRow(line) {
+  return line.includes("|") && line.trim().length > 0;
+}
+
+function highlightCode(code, lang) {
+  if (!code) return "";
+  const l = (lang || "").toLowerCase();
+
+  if (l === "js" || l === "javascript" || l === "ts" || l === "typescript") {
+    return code.replace(
+      /(\/\/.*$|\/\*[\s\S]*?\*\/)|(&quot;(?:\\.|[^&"\\])*&quot;|'[^']*'|`[^`]*`)|(\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|class|extends|import|export|default|from|try|catch|finally|throw|async|await|typeof|instanceof|this|true|false|null|undefined)\b)|(\b(?:console|document|window|Math|JSON|Promise|Array|Object|String|Number|Boolean|fetch|setTimeout|setInterval)\b)|(\b\d+(?:\.\d+)?\b)/gm,
+      (m, comment, str, kw, builtin, num) => {
+        if (comment) return `<span class="tok-comment">${comment}</span>`;
+        if (str) return `<span class="tok-str">${str}</span>`;
+        if (kw) return `<span class="tok-kw">${kw}</span>`;
+        if (builtin) return `<span class="tok-builtin">${builtin}</span>`;
+        if (num) return `<span class="tok-num">${num}</span>`;
+        return m;
+      }
+    );
+  }
+
+  if (l === "py" || l === "python") {
+    return code.replace(
+      /(#.*$)|(&quot;&quot;&quot;[\s\S]*?&quot;&quot;&quot;|'''[\s\S]*?'''|&quot;(?:\\.|[^&"\\])*&quot;|'(?:\\.|[^'\\])*')|(\b(?:def|class|import|from|return|if|elif|else|for|while|try|except|finally|with|as|in|is|not|and|or|lambda|yield|async|await|None|True|False|self|pass|raise|break|continue)\b)|(\b(?:print|len|range|int|str|float|list|dict|set|tuple|super|type|open|enumerate|zip|sum|min|max|isinstance)\b)|(\b\d+(?:\.\d+)?\b)/gm,
+      (m, comment, str, kw, builtin, num) => {
+        if (comment) return `<span class="tok-comment">${comment}</span>`;
+        if (str) return `<span class="tok-str">${str}</span>`;
+        if (kw) return `<span class="tok-kw">${kw}</span>`;
+        if (builtin) return `<span class="tok-builtin">${builtin}</span>`;
+        if (num) return `<span class="tok-num">${num}</span>`;
+        return m;
+      }
+    );
+  }
+
+  if (l === "json") {
+    return code.replace(
+      /(&quot;(?:\\.|[^&"\\])*&quot;(?=\s*:))|(&quot;(?:\\.|[^&"\\])*&quot;)|(\b(?:true|false|null)\b)|(-?\b\d+(?:\.\d+)?\b)/gm,
+      (m, prop, str, kw, num) => {
+        if (prop) return `<span class="tok-prop">${prop}</span>`;
+        if (str) return `<span class="tok-str">${str}</span>`;
+        if (kw) return `<span class="tok-kw">${kw}</span>`;
+        if (num) return `<span class="tok-num">${num}</span>`;
+        return m;
+      }
+    );
+  }
+
+  if (l === "sh" || l === "bash" || l === "zsh" || l === "shell") {
+    return code.replace(
+      /(#.*$)|(&quot;(?:\\.|[^&"\\])*&quot;|'[^']*')|(\$[a-zA-Z0-9_{}]+)|(\b(?:echo|cd|ls|mkdir|rm|cp|mv|chmod|chown|cat|grep|curl|wget|git|npm|npx|pip|python|python3|uvicorn|docker|sudo|export|source|if|then|else|elif|fi|for|in|do|done|while|case|esac|return|exit)\b)|(\s-[a-zA-Z0-9_\-]+|\s--[a-zA-Z0-9_\-]+)/gm,
+      (m, comment, str, v, kw, flag) => {
+        if (comment) return `<span class="tok-comment">${comment}</span>`;
+        if (str) return `<span class="tok-str">${str}</span>`;
+        if (v) return `<span class="tok-var">${v}</span>`;
+        if (kw) return `<span class="tok-kw">${kw}</span>`;
+        if (flag) return `<span class="tok-flag">${flag}</span>`;
+        return m;
+      }
+    );
+  }
+
+  return code;
+}
+
 function renderMarkdown(raw) {
   const lines = escapeHtml(raw).split("\n");
-  let html = "", i = 0, inCodeBlock = false, codeBuffer = [];
+  let html = "", i = 0, inCodeBlock = false, codeLang = "", codeBuffer = [];
   let listType = null, listBuffer = [], quoteBuffer = [];
 
   function flushList() {
@@ -1658,14 +1791,43 @@ function renderMarkdown(raw) {
     const line = lines[i];
     const fence = line.match(/^```(\w*)\s*$/);
     if (fence) {
-      if (!inCodeBlock) { flushList(); flushQuote(); inCodeBlock = true; codeBuffer = []; }
-      else { html += `<pre><code>${codeBuffer.join("\n")}</code></pre>`; inCodeBlock = false; }
+      if (!inCodeBlock) {
+        flushList(); flushQuote();
+        inCodeBlock = true;
+        codeLang = (fence[1] || "").toLowerCase();
+        codeBuffer = [];
+      } else {
+        const rawCode = codeBuffer.join("\n");
+        const highlighted = highlightCode(rawCode, codeLang);
+        const langAttr = codeLang ? ` class="language-${escapeHtml(codeLang)}"` : "";
+        html += `<pre><code${langAttr}>${highlighted}</code></pre>`;
+        inCodeBlock = false;
+        codeLang = "";
+      }
       i++; continue;
     }
     if (inCodeBlock) { codeBuffer.push(line); i++; continue; }
 
     const h = line.match(/^(#{1,4})\s+(.*)$/);
     if (h) { flushList(); flushQuote(); const lvl = h[1].length; html += `<h${lvl}>${renderInline(h[2])}</h${lvl}>`; i++; continue; }
+
+    // Table parsing: header row followed by separator row
+    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      flushList(); flushQuote();
+      const headerCells = splitTableRow(line);
+      i += 2; // skip header and separator
+      const bodyRows = [];
+      while (i < lines.length && isTableRow(lines[i]) && !isTableSeparator(lines[i]) && !lines[i].match(/^```/)) {
+        bodyRows.push(splitTableRow(lines[i]));
+        i++;
+      }
+      html += `<div class="md-table-wrap"><table><thead><tr>` +
+        headerCells.map(c => `<th>${renderInline(c)}</th>`).join("") +
+        `</tr></thead><tbody>` +
+        bodyRows.map(r => `<tr>` + r.map(c => `<td>${renderInline(c)}</td>`).join("") + `</tr>`).join("") +
+        `</tbody></table></div>`;
+      continue;
+    }
 
     const ul = line.match(/^\s*[-*]\s+(.*)$/);
     const ol = line.match(/^\s*\d+\.\s+(.*)$/);
@@ -1686,7 +1848,12 @@ function renderMarkdown(raw) {
     i++;
   }
   flushList(); flushQuote();
-  if (inCodeBlock) html += `<pre><code>${codeBuffer.join("\n")}</code></pre>`;
+  if (inCodeBlock) {
+    const rawCode = codeBuffer.join("\n");
+    const highlighted = highlightCode(rawCode, codeLang);
+    const langAttr = codeLang ? ` class="language-${escapeHtml(codeLang)}"` : "";
+    html += `<pre><code${langAttr}>${highlighted}</code></pre>`;
+  }
   return html;
 }
 
