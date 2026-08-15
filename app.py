@@ -160,6 +160,10 @@ class PinSessionRequest(BaseModel):
 class StarSessionRequest(BaseModel):
     starred: bool
 
+class SetModelRequest(BaseModel):
+    model: str
+
+
 @app.post("/sessions/{session_id}/archive")
 def archive_session_endpoint(session_id: str, req: ArchiveRequest) -> dict:
     from core.memory import set_session_archived
@@ -522,3 +526,102 @@ def get_starred_endpoint() -> dict:
 def delete_session_endpoint(session_id: str) -> dict:
     deleted = delete_session(session_id)
     return {"deleted_messages": deleted}
+
+
+def detect_gpu_vram_mb() -> int | None:
+    """Detects total GPU VRAM in MB via nvidia-smi if available, returns None on failure."""
+    try:
+        import subprocess
+        res = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if res.returncode == 0:
+            lines = res.stdout.strip().splitlines()
+            if lines:
+                return int(lines[0].strip())
+    except Exception:
+        pass
+    return None
+
+
+@app.get("/models")
+def list_models_endpoint() -> dict:
+    import httpx
+    from config import OLLAMA_HOST, LLM_MODEL
+    from core.memory import get_current_model, set_current_model, get_setting
+
+    try:
+        resp = httpx.get(f"{OLLAMA_HOST}/api/tags", timeout=10.0)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Could not connect to Ollama ({e}). Ensure Ollama is running.",
+        )
+
+    raw_models = data.get("models", [])
+    filtered_models = []
+    for m in raw_models:
+        name = m.get("name") or m.get("model", "")
+        if not name:
+            continue
+        capabilities = m.get("capabilities", [])
+        family = m.get("details", {}).get("family", "")
+        # Filter out embedding-only models
+        if capabilities == ["embedding"] or "nomic-embed" in name.lower() or family == "nomic-bert":
+            continue
+
+        raw_size = m.get("size", 0)
+        size_gb = round(raw_size / (1024 ** 3), 1)
+        param_size = m.get("details", {}).get("parameter_size", "")
+        quant = m.get("details", {}).get("quantization_level", "")
+
+        filtered_models.append({
+            "name": name,
+            "size": raw_size,
+            "size_gb": size_gb,
+            "parameter_size": param_size,
+            "quantization": quant,
+            "family": family,
+        })
+
+    vram_mb = detect_gpu_vram_mb()
+    persisted_model = get_setting("llm_model")
+
+    if not persisted_model and filtered_models:
+        available_names = [m["name"] for m in filtered_models]
+        if vram_mb and vram_mb <= 4500:
+            # Pick a model that fits comfortably in ~4GB VRAM
+            small_model = next(
+                (m["name"] for m in filtered_models if m["size_gb"] <= 4.0 or "4b" in m["name"].lower() or "3b" in m["name"].lower()),
+                None
+            )
+            chosen_model = small_model or (LLM_MODEL if LLM_MODEL in available_names else filtered_models[0]["name"])
+        else:
+            chosen_model = LLM_MODEL if LLM_MODEL in available_names else filtered_models[0]["name"]
+
+        set_current_model(chosen_model)
+        current_model = chosen_model
+    else:
+        current_model = get_current_model()
+
+    return {
+        "models": filtered_models,
+        "current_model": current_model,
+        "vram_mb": vram_mb,
+    }
+
+
+@app.post("/models")
+@app.post("/models/set")
+def set_model_endpoint(req: SetModelRequest) -> dict:
+    from core.memory import set_current_model
+    model_name = req.model.strip()
+    if not model_name:
+        raise HTTPException(status_code=400, detail="model name cannot be empty")
+    set_current_model(model_name)
+    return {"status": "success", "model": model_name}

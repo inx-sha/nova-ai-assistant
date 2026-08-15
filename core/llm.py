@@ -4,7 +4,8 @@ import os
 import json
 import httpx
 
-from config import OLLAMA_HOST, LLM_MODEL, EMBED_MODEL, LLM_TEMPERATURE, LLM_CONTEXT_WINDOW
+from config import OLLAMA_HOST, EMBED_MODEL, LLM_TEMPERATURE, LLM_CONTEXT_WINDOW
+from core.memory import get_current_model
 
 
 class LLMError(RuntimeError):
@@ -14,13 +15,14 @@ class LLMError(RuntimeError):
 _http_client = httpx.Client(timeout=httpx.Timeout(180.0, connect=10.0), limits=httpx.Limits(max_keepalive_connections=20, max_connections=50))
 
 
-def chat(messages: list[dict], temperature: float | None = None) -> str:
+def chat(messages: list[dict], temperature: float | None = None, model: str | None = None) -> str:
     """
     messages: [{"role": "system"|"user"|"assistant", "content": "..."}]
     Returns the full response text.
     """
+    resolved_model = model or get_current_model()
     payload = {
-        "model": LLM_MODEL,
+        "model": resolved_model,
         "messages": messages,
         "stream": False,
         "options": {
@@ -42,13 +44,14 @@ def chat(messages: list[dict], temperature: float | None = None) -> str:
         content = content.split("</think>", 1)[1].strip()
     return content
 
-def chat_stream(messages: list[dict], temperature: float | None = None):
+def chat_stream(messages: list[dict], temperature: float | None = None, model: str | None = None):
     """
     Generator version of chat() -- yields text chunks as they arrive from
     Ollama, filtering internal reasoning tags so users get immediate clean output.
     """
+    resolved_model = model or get_current_model()
     payload = {
-        "model": LLM_MODEL,
+        "model": resolved_model,
         "messages": messages,
         "stream": True,
         "options": {
@@ -89,9 +92,10 @@ def chat_stream(messages: list[dict], temperature: float | None = None):
     except httpx.HTTPError as e:
         raise LLMError(f"Ollama streaming chat request failed: {e}") from e
 
-def embed(text: str) -> list[float]:
+def embed(text: str, model: str | None = None) -> list[float]:
     """Returns the embedding vector for a piece of text."""
-    payload = {"model": EMBED_MODEL, "prompt": text}
+    resolved_model = model or EMBED_MODEL
+    payload = {"model": resolved_model, "prompt": text}
     try:
         resp = _http_client.post(f"{OLLAMA_HOST}/api/embeddings", json=payload)
         resp.raise_for_status()
@@ -104,6 +108,6 @@ def embed(text: str) -> list[float]:
         raise LLMError(f"No embedding returned for text (len={len(text)})")
     return embedding
 
-def embed_many(texts: list[str]) -> list[list[float]]:
+def embed_many(texts: list[str], model: str | None = None) -> list[list[float]]:
     """Returns embedding vectors for a list of text strings efficiently."""
-    return [embed(t) for t in texts]
+    return [embed(t, model=model) for t in texts]

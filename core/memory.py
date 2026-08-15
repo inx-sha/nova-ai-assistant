@@ -78,6 +78,12 @@ CREATE TABLE IF NOT EXISTS session_files (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_files_session ON session_files(session_id);
 """
@@ -495,3 +501,31 @@ def delete_messages_after(session_id: str, message_id: int) -> int:
             (session_id, message_id),
         )
         return cursor.rowcount
+
+# --- App Settings ---
+
+def set_setting(key: str, value: str) -> None:
+    now = _now()
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            (key, value, now),
+        )
+
+
+def get_setting(key: str, default: str | None = None) -> str | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+    return row["value"] if row else default
+
+
+def get_current_model() -> str:
+    from config import LLM_MODEL
+    return get_setting("llm_model", default=LLM_MODEL) or LLM_MODEL
+
+
+def set_current_model(model_name: str) -> None:
+    set_setting("llm_model", model_name)
