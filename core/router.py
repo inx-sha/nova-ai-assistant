@@ -417,7 +417,7 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
     if _is_resume_query(user_input):
         doc_type_filter = ["resume"]  # strictly restrict to resume chunks
     else:
-        doc_type_filter = ["general", "technical_report"]  # exclude resume from ordinary Q&A
+        doc_type_filter = ["general", "technical_report", "cloud_synthesized"]  # exclude resume from ordinary Q&A
 
     hits = knowledge_query(user_input, top_k=RAG_TOP_K, category_filter=category_filter,
                             doc_type_filter=doc_type_filter)
@@ -461,6 +461,7 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
             f"Context:\n{context}\n\nQuestion: {user_input}"
         )
     elif persona_tmpl is not None:
+        # Curated or custom persona mode -- answer without RAG context
         mode = "persona"
         prompt = user_input
     else:
@@ -482,12 +483,13 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
             tags = ["web-research"]
             if getattr(outcome, "doc_type", "general") == "cloud_synthesized":
                 tags.append("cloud-synthesized")
+            ingest_categories = list(set(["general", session_mode]))
             ingest_text(
                 outcome.summary,
                 source=f"web_research:{outcome.sources[0]}",
                 tags=tags,
                 confidence=outcome.confidence,
-                categories=["general"],
+                categories=ingest_categories,
                 doc_type=getattr(outcome, "doc_type", "general"),
                 expires_at=getattr(outcome, "expires_at", None),
             )
