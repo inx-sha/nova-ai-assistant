@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from core import memory
-from core.llm import chat, chat_stream
+from core.llm import chat, chat_stream, embed
 from knowledge.store import query as knowledge_query
 from knowledge.internet import research_topic
 from knowledge.ingest import ingest_text
@@ -89,10 +90,48 @@ RESUME_PATTERNS = {
     "selected projects", "about me", "my profile",
 }
 
+RESUME_ANCHOR_PHRASES = [
+    "questions about my work experience, education, skills, resume, CV",
+    "what is my educational background and university degrees",
+    "tell me about my professional job experience and career history",
+    "list my technical skills, qualifications, and personal profile",
+    "what projects have I worked on in my past jobs or portfolio",
+]
+RESUME_SIMILARITY_THRESHOLD = 0.60
+
+_cached_resume_anchor_embeddings: list[list[float]] | None = None
+
+
+def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
+    dot = sum(a * b for a, b in zip(v1, v2))
+    norm1 = math.sqrt(sum(a * a for a in v1))
+    norm2 = math.sqrt(sum(b * b for b in v2))
+    if norm1 == 0.0 or norm2 == 0.0:
+        return 0.0
+    return dot / (norm1 * norm2)
+
+
+def _get_resume_anchor_embeddings() -> list[list[float]]:
+    global _cached_resume_anchor_embeddings
+    if _cached_resume_anchor_embeddings is None:
+        _cached_resume_anchor_embeddings = [embed(phrase) for phrase in RESUME_ANCHOR_PHRASES]
+    return _cached_resume_anchor_embeddings
+
 
 def _is_resume_query(text: str) -> bool:
     cleaned = text.strip().lower()
-    return any(p in cleaned for p in RESUME_PATTERNS)
+    # 1. Fast-path short-circuit keyword matching
+    if any(p in cleaned for p in RESUME_PATTERNS):
+        return True
+
+    # 2. Embedding cosine similarity check against anchor phrases
+    try:
+        query_vec = embed(cleaned)
+        anchor_vecs = _get_resume_anchor_embeddings()
+        max_sim = max((_cosine_similarity(query_vec, av) for av in anchor_vecs), default=0.0)
+        return max_sim >= RESUME_SIMILARITY_THRESHOLD
+    except Exception:
+        return False
 
 
 def _find_target_document(session_id: str, user_input: str, attachment: str | None = None) -> tuple[str | None, list[dict]]:
