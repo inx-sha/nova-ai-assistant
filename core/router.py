@@ -143,6 +143,49 @@ def _is_resume_query(text: str) -> bool:
         return False
 
 
+SUBJECT_SPECIFIC_KEYWORDS: dict[str, list[str]] = {
+    "english": [
+        "grammar", "tense", "tenses", "verb", "verbs", "noun", "nouns", "adjective",
+        "adverbs", "adverb", "pronoun", "pronouns", "sentence", "sentences", "clause",
+        "clauses", "syntax", "punctuation", "comma", "commas", "vocabulary", "metaphor",
+        "simile", "literature", "writing", "reading", "idiom", "idioms", "perfect",
+        "past", "present", "future", "continuous", "subjunctive", "preposition",
+        "conjunction", "spelling", "essay", "paragraph", "word", "words", "speech",
+        "voice", "passive", "active", "plural", "singular", "dialogue", "tone", "rhetoric"
+    ],
+    "physics": [
+        "physics", "gravity", "force", "forces", "motion", "velocity", "acceleration",
+        "mass", "energy", "momentum", "quantum", "relativity", "mechanics", "thermodynamics",
+        "optics", "wave", "waves", "particle", "particles", "friction", "inertia", "vacuum",
+        "newton", "einstein", "joule", "watt", "electromagnetism", "circuit", "voltage"
+    ],
+    "math": [
+        "math", "mathematics", "calculus", "algebra", "geometry", "derivative", "integral",
+        "equation", "formula", "theorem", "matrix", "vector", "limit", "function", "graph"
+    ],
+    "mathematics": [
+        "math", "mathematics", "calculus", "algebra", "geometry", "derivative", "integral",
+        "equation", "formula", "theorem", "matrix", "vector", "limit", "function", "graph"
+    ],
+    "calculus": [
+        "calculus", "derivative", "integral", "limit", "integration", "differentiation",
+        "function", "rate", "slope", "taylor", "series", "riemann", "chain rule"
+    ],
+    "law": [
+        "law", "legal", "contract", "liability", "clause", "statute", "court", "compliance",
+        "rights", "damages", "jurisdiction", "agreement", "regulation", "tort", "attorney",
+        "prosecution", "litigation", "claim", "plaintiff", "defendant", "settlement"
+    ],
+}
+
+SUBJECT_ANCHOR_PHRASES: dict[str, str] = {
+    "english": "questions about english language, grammar, tenses, verbs, sentence structure, vocabulary, writing, literature, reading comprehension, idioms, and punctuation in english",
+    "physics": "questions about physics, science, mechanics, energy, forces, motion, concepts, theories, and problem solving in physics",
+    "math": "questions about mathematics, calculus, algebra, geometry, equations, formulas, theorems, and mathematical problem solving",
+    "mathematics": "questions about mathematics, calculus, algebra, geometry, equations, formulas, theorems, and mathematical problem solving",
+    "calculus": "questions about calculus, derivatives, integrals, limits, differentiation, and mathematical concepts in calculus",
+}
+
 PERSONA_RELEVANCE_THRESHOLD = 0.44
 
 
@@ -164,6 +207,9 @@ def _is_relevant_to_persona(session_id: str, user_input: str) -> bool:
     # 1. Fast-path keyword matching
     keywords = list(persona_tmpl.keywords or [])
     if persona_subject and persona_subject.strip():
+        sub_key = persona_subject.strip().lower()
+        if sub_key in SUBJECT_SPECIFIC_KEYWORDS:
+            keywords.extend(SUBJECT_SPECIFIC_KEYWORDS[sub_key])
         keywords.extend([w.strip().lower() for w in persona_subject.replace(",", " ").split() if w.strip()])
 
     normalized = cleaned.replace(",", " ").replace("-", " ").replace("?", " ")
@@ -174,7 +220,11 @@ def _is_relevant_to_persona(session_id: str, user_input: str) -> bool:
     # 2. Embedding similarity check against anchor
     anchor = persona_tmpl.anchor_phrase
     if persona_subject and persona_subject.strip():
-        anchor = f"questions about {persona_subject}, concepts, theories, problem solving, and details in {persona_subject}"
+        sub_key = persona_subject.strip().lower()
+        if sub_key in SUBJECT_ANCHOR_PHRASES:
+            anchor = SUBJECT_ANCHOR_PHRASES[sub_key]
+        else:
+            anchor = f"questions about {persona_subject}, concepts, theories, problem solving, and details in {persona_subject}"
 
     if not anchor:
         return True
@@ -397,6 +447,9 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
             f"[LOW CONFIDENCE CONTEXT -- flag uncertainty to the user]\n"
             f"Context:\n{context}\n\nQuestion: {user_input}"
         )
+    elif persona_tmpl is not None:
+        mode = "persona"
+        prompt = user_input
     else:
         outcome = research_topic(user_input)
 
@@ -442,7 +495,7 @@ def _prepare_response(session_id: str, user_input: str, attachment: str | None =
 
     if mode == "learned_from_internet":
         sources = outcome.sources
-    elif mode == "no_local_answer":
+    elif mode in ("no_local_answer", "persona"):
         sources = []
     else:
         sources = sorted({

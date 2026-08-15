@@ -12,7 +12,7 @@ class LLMError(RuntimeError):
     pass
 
 
-_http_client = httpx.Client(timeout=httpx.Timeout(180.0, connect=10.0), limits=httpx.Limits(max_keepalive_connections=20, max_connections=50))
+_http_client = httpx.Client(timeout=httpx.Timeout(300.0, connect=15.0, read=300.0, write=30.0), limits=httpx.Limits(max_keepalive_connections=20, max_connections=50))
 
 
 def chat(messages: list[dict], temperature: float | None = None, model: str | None = None) -> str:
