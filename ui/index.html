@@ -342,22 +342,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .session-action {
-    opacity: 0;
-    width: 24px;
-    height: 24px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-    color: var(--color-text-faint);
-    flex-shrink: 0;
-    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
-  }
-  .session-action svg { width: 14px; height: 14px; stroke: currentColor; }
-  .session-item:hover .session-action { opacity: 1; }
-  .session-action:hover { background: var(--color-surface); color: var(--color-text); }
-  .session-action.delete:hover { color: var(--color-error); }
 
   .session-group-header {
     display: flex;
@@ -436,9 +420,6 @@
     color: var(--color-text-faint);
     text-transform: uppercase;
   }
-  .session-action.persistent { opacity: 1; }
-  .session-action.persistent.pin-active { color: var(--color-accent); }
-  .session-action.persistent.star-active { color: var(--color-star); }
   .session-status-icons { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
   .session-status-icons svg { width: 12px; height: 12px; stroke: currentColor; }
   .session-status-icons .status-pin { color: var(--color-accent); }
