@@ -41,7 +41,10 @@ def _build_system_prompt(session_id: str | None = None) -> str:
         persona_id, persona_subject = memory.get_session_persona(session_id)
         template = get_persona(persona_id)
         if template:
-            subject_clause = f" in {persona_subject}" if (persona_subject and persona_subject.strip()) else ""
+            if template.id == "teacher":
+                subject_clause = f" in {persona_subject}" if (persona_subject and persona_subject.strip()) else ""
+            else:
+                subject_clause = f", specializing in {persona_subject}" if (persona_subject and persona_subject.strip()) else ""
             persona_text = template.system_prompt.replace("{subject_clause}", subject_clause)
             parts.append(f"\nPersona Directives ({template.name}):\n{persona_text}")
 

@@ -67,6 +67,23 @@ def get_persona_templates() -> list[PersonaTemplate]:
 
 
 def get_persona(persona_id: str | None) -> PersonaTemplate | None:
-    if not persona_id:
+    if not persona_id or not persona_id.strip():
         return None
-    return PERSONA_TEMPLATES.get(persona_id.strip().lower())
+    cleaned = persona_id.strip()
+    key = cleaned.lower()
+    if key in PERSONA_TEMPLATES:
+        return PERSONA_TEMPLATES[key]
+
+    # Custom persona fallback: create lightweight PersonaTemplate dynamically
+    display_name = cleaned.title() if cleaned.islower() else cleaned
+    return PersonaTemplate(
+        id=key,
+        name=display_name,
+        description=f"Custom persona: {display_name}",
+        system_prompt=f"You are acting as a {cleaned}{{subject_clause}}. Stay within that domain, be accurate, and be direct.",
+        requires_subject=False,
+        subject_prompt="",
+        keywords=[],
+        anchor_phrase=f"questions related to {cleaned}",
+    )
+
