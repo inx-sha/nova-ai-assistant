@@ -112,6 +112,8 @@ def init_db() -> None:
         _migrate_add_column(conn, "conversations", "attachment", "TEXT")
         _migrate_add_column(conn, "sessions", "pinned", "INTEGER NOT NULL DEFAULT 0")
         _migrate_add_column(conn, "sessions", "starred", "INTEGER NOT NULL DEFAULT 0")
+        _migrate_add_column(conn, "sessions", "persona", "TEXT")
+        _migrate_add_column(conn, "sessions", "persona_subject", "TEXT")
 
 
 def _migrate_add_column(conn, table: str, column: str, definition: str) -> None:
@@ -299,16 +301,25 @@ def get_all_sessions(include_archived: bool = False) -> list[dict]:
         ).fetchall()
 
         session_meta = {
-            r["session_id"]: {"mode": r["mode"], "archived": r["archived"],
-                               "pinned": r["pinned"], "starred": r["starred"]}
+            r["session_id"]: {
+                "mode": r["mode"],
+                "archived": r["archived"],
+                "pinned": r["pinned"],
+                "starred": r["starred"],
+                "persona": r["persona"],
+                "persona_subject": r["persona_subject"],
+            }
             for r in conn.execute(
-                "SELECT session_id, mode, archived, pinned, starred FROM sessions"
+                "SELECT session_id, mode, archived, pinned, starred, persona, persona_subject FROM sessions"
             ).fetchall()
         }
 
     sessions = []
     for r in rows:
-        meta = session_meta.get(r["session_id"], {"mode": "general", "archived": 0, "pinned": 0, "starred": 0})
+        meta = session_meta.get(r["session_id"], {
+            "mode": "general", "archived": 0, "pinned": 0, "starred": 0,
+            "persona": None, "persona_subject": None,
+        })
         if not include_archived and meta["archived"]:
             continue
         title = (r["first_message"] or "New chat")[:60]
@@ -320,6 +331,8 @@ def get_all_sessions(include_archived: bool = False) -> list[dict]:
             "archived": bool(meta["archived"]),
             "pinned": bool(meta["pinned"]),
             "starred": bool(meta["starred"]),
+            "persona": meta.get("persona"),
+            "persona_subject": meta.get("persona_subject"),
         })
     return sessions
 
@@ -357,7 +370,8 @@ def get_session_files(session_id: str) -> list[dict]:
 
 # --- Session metadata ---
 
-def ensure_session(session_id: str, mode: str = "general") -> None:
+def ensure_session(session_id: str, mode: str = "general", persona: str | None = None,
+                   persona_subject: str | None = None) -> None:
     """Creates a session row if it doesn't exist yet. No-op otherwise."""
     now = _now()
     with get_conn() as conn:
@@ -366,9 +380,9 @@ def ensure_session(session_id: str, mode: str = "general") -> None:
         ).fetchone()
         if not existing:
             conn.execute(
-                "INSERT INTO sessions (session_id, mode, archived, created_at, updated_at) "
-                "VALUES (?, ?, 0, ?, ?)",
-                (session_id, mode, now, now),
+                "INSERT INTO sessions (session_id, mode, archived, persona, persona_subject, created_at, updated_at) "
+                "VALUES (?, ?, 0, ?, ?, ?, ?)",
+                (session_id, mode, persona, persona_subject, now, now),
             )
 
 
@@ -378,6 +392,25 @@ def get_session_mode(session_id: str) -> str:
             "SELECT mode FROM sessions WHERE session_id = ?", (session_id,)
         ).fetchone()
     return row["mode"] if row else "general"
+
+
+def get_session_persona(session_id: str) -> tuple[str | None, str | None]:
+    """Returns (persona, persona_subject) for the given session."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT persona, persona_subject FROM sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+    if row:
+        return row["persona"], row["persona_subject"]
+    return None, None
+
+
+def set_session_persona(session_id: str, persona: str | None, persona_subject: str | None = None) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE sessions SET persona = ?, persona_subject = ?, updated_at = ? WHERE session_id = ?",
+            (persona, persona_subject, _now(), session_id),
+        )
 
 
 def set_session_archived(session_id: str, archived: bool) -> None:
@@ -404,12 +437,18 @@ def set_session_starred(session_id: str, starred: bool) -> None:
         )
 
 
-def set_session_mode(session_id: str, mode: str) -> None:
+def set_session_mode(session_id: str, mode: str, persona: str | None = None, persona_subject: str | None = None) -> None:
     with get_conn() as conn:
-        conn.execute(
-            "UPDATE sessions SET mode = ?, updated_at = ? WHERE session_id = ?",
-            (mode, _now(), session_id),
-        )
+        if persona is not None or persona_subject is not None:
+            conn.execute(
+                "UPDATE sessions SET mode = ?, persona = ?, persona_subject = ?, updated_at = ? WHERE session_id = ?",
+                (mode, persona, persona_subject, _now(), session_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE sessions SET mode = ?, updated_at = ? WHERE session_id = ?",
+                (mode, _now(), session_id),
+            )
 
 def get_all_distinct_modes() -> list[str]:
     with get_conn() as conn:

@@ -123,6 +123,8 @@ class SessionInfo(BaseModel):
     archived: bool = False
     pinned: bool = False
     starred: bool = False
+    persona: str | None = None
+    persona_subject: str | None = None
 
 
 class SessionsListResponse(BaseModel):
@@ -137,6 +139,8 @@ class MoveMessageRequest(BaseModel):
 
 class SetModeRequest(BaseModel):
     mode: str
+    persona: str | None = None
+    persona_subject: str | None = None
 
 class MessageActionRequest(BaseModel):
     message_id: int
@@ -409,12 +413,23 @@ def install_pack_endpoint(req: InstallPackRequest) -> InstallPackResponse:
         raise HTTPException(status_code=400, detail=str(e))
     return InstallPackResponse(**result)
 
+@app.get("/personas")
+def get_personas_endpoint() -> dict:
+    from core.personas import get_persona_templates
+    return {"personas": [p.to_dict() for p in get_persona_templates()]}
+
+
 @app.post("/sessions/{session_id}/mode")
 def set_session_mode_endpoint(session_id: str, req: SetModeRequest) -> dict:
     from core.memory import ensure_session
-    ensure_session(session_id)
-    _set_session_mode(session_id, req.mode)
-    return {"session_id": session_id, "mode": req.mode}
+    ensure_session(session_id, mode=req.mode, persona=req.persona, persona_subject=req.persona_subject)
+    _set_session_mode(session_id, req.mode, persona=req.persona, persona_subject=req.persona_subject)
+    return {
+        "session_id": session_id,
+        "mode": req.mode,
+        "persona": req.persona,
+        "persona_subject": req.persona_subject,
+    }
 
 @app.post("/messages/pin")
 def pin_message_endpoint(req: MessageActionRequest) -> dict:
