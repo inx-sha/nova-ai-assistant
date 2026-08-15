@@ -1584,6 +1584,11 @@
         <div id="newModePersonaDesc" style="font-size:0.78em;color:var(--color-text-muted);margin-top:4px;min-height:1.2em;"></div>
       </div>
 
+      <div id="newModeCustomPersonaWrap" style="display:none;">
+        <label for="newModeCustomPersonaInput" style="display:block;font-size:0.84em;font-weight:600;margin-bottom:6px;color:var(--color-text);">Custom Persona Name</label>
+        <input id="newModeCustomPersonaInput" type="text" placeholder="e.g. Doctor, Accountant, Fitness Coach, Chef" style="width:100%;padding:9px 12px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-text);font-family:inherit;font-size:0.9em;" autocomplete="off" />
+      </div>
+
       <div id="newModeSubjectWrap" style="display:none;">
         <label for="newModeSubjectInput" id="newModeSubjectLabel" style="display:block;font-size:0.84em;font-weight:600;margin-bottom:6px;color:var(--color-text);">Specialized Subject</label>
         <input id="newModeSubjectInput" type="text" placeholder="e.g. Physics, Calculus, Contract Law" style="width:100%;padding:9px 12px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-text);font-family:inherit;font-size:0.9em;" autocomplete="off" />
@@ -1955,6 +1960,8 @@ const newModeSubmitBtn = document.getElementById("newModeSubmitBtn");
 const newModeNameInput = document.getElementById("newModeNameInput");
 const newModePersonaSelect = document.getElementById("newModePersonaSelect");
 const newModePersonaDesc = document.getElementById("newModePersonaDesc");
+const newModeCustomPersonaWrap = document.getElementById("newModeCustomPersonaWrap");
+const newModeCustomPersonaInput = document.getElementById("newModeCustomPersonaInput");
 const newModeSubjectWrap = document.getElementById("newModeSubjectWrap");
 const newModeSubjectLabel = document.getElementById("newModeSubjectLabel");
 const newModeSubjectInput = document.getElementById("newModeSubjectInput");
@@ -3624,6 +3631,10 @@ async function loadPersonas() {
         opt.textContent = p.name;
         newModePersonaSelect.appendChild(opt);
       }
+      const customOpt = document.createElement("option");
+      customOpt.value = "__custom__";
+      customOpt.textContent = "Custom...";
+      newModePersonaSelect.appendChild(customOpt);
     }
   } catch (err) {
     console.error("Could not load personas:", err);
@@ -3635,8 +3646,10 @@ function openNewModeModal() {
   newModeNameInput.value = "";
   newModePersonaSelect.value = "";
   newModePersonaDesc.textContent = "";
-  newModeSubjectInput.value = "";
-  newModeSubjectWrap.style.display = "none";
+  if (newModeCustomPersonaInput) newModeCustomPersonaInput.value = "";
+  if (newModeCustomPersonaWrap) newModeCustomPersonaWrap.style.display = "none";
+  if (newModeSubjectInput) newModeSubjectInput.value = "";
+  if (newModeSubjectWrap) newModeSubjectWrap.style.display = "none";
   newModeOverlay.classList.add("open");
   newModeNameInput.focus();
 }
@@ -3656,19 +3669,32 @@ if (newModeCancelBtn) newModeCancelBtn.addEventListener("click", closeNewModeMod
 
 if (newModePersonaSelect) {
   newModePersonaSelect.addEventListener("change", () => {
-    const selected = personasCache.find(p => p.id === newModePersonaSelect.value);
-    if (selected) {
-      newModePersonaDesc.textContent = selected.description || "";
-      if (selected.requires_subject) {
+    const val = newModePersonaSelect.value;
+    if (val === "__custom__") {
+      newModePersonaDesc.textContent = "Define any custom persona and optional specialization subject.";
+      if (newModeCustomPersonaWrap) newModeCustomPersonaWrap.style.display = "block";
+      if (newModeSubjectWrap) {
         newModeSubjectWrap.style.display = "block";
-        newModeSubjectLabel.textContent = selected.subject_prompt || "Specialized Subject";
-        newModeSubjectInput.placeholder = "e.g. Physics, Calculus, History";
+        newModeSubjectLabel.innerHTML = 'Specialization Subject <span style="font-size:0.85em;font-weight:400;color:var(--color-text-faint);">(Optional)</span>';
+        newModeSubjectInput.placeholder = "e.g. Strength Training, French Cuisine, Tax Accounting";
+      }
+      if (newModeCustomPersonaInput) newModeCustomPersonaInput.focus();
+    } else {
+      if (newModeCustomPersonaWrap) newModeCustomPersonaWrap.style.display = "none";
+      const selected = personasCache.find(p => p.id === val);
+      if (selected) {
+        newModePersonaDesc.textContent = selected.description || "";
+        if (selected.requires_subject) {
+          newModeSubjectWrap.style.display = "block";
+          newModeSubjectLabel.textContent = selected.subject_prompt || "Specialized Subject";
+          newModeSubjectInput.placeholder = "e.g. Physics, Calculus, History";
+        } else {
+          newModeSubjectWrap.style.display = "none";
+        }
       } else {
+        newModePersonaDesc.textContent = "";
         newModeSubjectWrap.style.display = "none";
       }
-    } else {
-      newModePersonaDesc.textContent = "";
-      newModeSubjectWrap.style.display = "none";
     }
   });
 }
@@ -3682,13 +3708,27 @@ if (newModeSubmitBtn) {
       return;
     }
     const normalized = nameVal.toLowerCase().replace(/\s+/g, "_");
-    const personaVal = newModePersonaSelect.value || null;
-    let subjectVal = newModeSubjectInput.value.trim() || null;
-    const selectedPersona = personasCache.find(p => p.id === personaVal);
-    if (selectedPersona && selectedPersona.requires_subject && !subjectVal) {
-      alert("Please specify a subject for this persona (e.g. Physics, History).");
-      newModeSubjectInput.focus();
-      return;
+    const rawPersonaVal = newModePersonaSelect.value || null;
+    let personaVal = null;
+    let subjectVal = newModeSubjectInput ? newModeSubjectInput.value.trim() || null : null;
+
+    if (rawPersonaVal === "__custom__") {
+      const customName = newModeCustomPersonaInput ? newModeCustomPersonaInput.value.trim() : "";
+      if (!customName) {
+        alert("Please enter a custom persona name (e.g. Doctor, Chef, Fitness Coach).");
+        if (newModeCustomPersonaInput) newModeCustomPersonaInput.focus();
+        return;
+      }
+      personaVal = customName;
+      // subjectVal is optional for custom personas
+    } else if (rawPersonaVal) {
+      personaVal = rawPersonaVal;
+      const selectedPersona = personasCache.find(p => p.id === personaVal);
+      if (selectedPersona && selectedPersona.requires_subject && !subjectVal) {
+        alert("Please specify a subject for this persona (e.g. Physics, History).");
+        newModeSubjectInput.focus();
+        return;
+      }
     }
 
     try {
