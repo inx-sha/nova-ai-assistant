@@ -41,10 +41,10 @@ def _build_system_prompt(session_id: str | None = None) -> str:
         persona_id, persona_subject = memory.get_session_persona(session_id)
         template = get_persona(persona_id)
         if template:
-            if template.id == "teacher":
-                subject_clause = f" in {persona_subject}" if (persona_subject and persona_subject.strip()) else ""
+            if persona_subject and persona_subject.strip():
+                subject_clause = template.subject_clause_format.replace("{subject}", persona_subject.strip())
             else:
-                subject_clause = f", specializing in {persona_subject}" if (persona_subject and persona_subject.strip()) else ""
+                subject_clause = ""
             persona_text = template.system_prompt.replace("{subject_clause}", subject_clause)
             parts.append(f"\nPersona Directives ({template.name}):\n{persona_text}")
 
@@ -192,6 +192,22 @@ SUBJECT_ANCHOR_PHRASES: dict[str, str] = {
 PERSONA_RELEVANCE_THRESHOLD = 0.44
 
 
+def _build_persona_anchor(persona_tmpl: PersonaTemplate, persona_subject: str | None = None) -> str:
+    subject_clean = (persona_subject or "").strip()
+    if persona_tmpl.anchor_phrase:
+        if subject_clean:
+            sub_key = subject_clean.lower()
+            if sub_key in SUBJECT_ANCHOR_PHRASES:
+                return SUBJECT_ANCHOR_PHRASES[sub_key]
+            return f"{persona_tmpl.anchor_phrase}, specifically in {subject_clean}"
+        return persona_tmpl.anchor_phrase
+
+    # Custom persona fallback: combine persona name and optional subject
+    if subject_clean:
+        return f"questions related to {persona_tmpl.name}, {subject_clean}"
+    return f"questions related to {persona_tmpl.name}"
+
+
 def _is_relevant_to_persona(session_id: str, user_input: str) -> bool:
     persona_id, persona_subject = memory.get_session_persona(session_id)
     if not persona_id:
@@ -221,14 +237,7 @@ def _is_relevant_to_persona(session_id: str, user_input: str) -> bool:
         return True
 
     # 2. Embedding similarity check against anchor
-    anchor = persona_tmpl.anchor_phrase
-    if persona_subject and persona_subject.strip():
-        sub_key = persona_subject.strip().lower()
-        if sub_key in SUBJECT_ANCHOR_PHRASES:
-            anchor = SUBJECT_ANCHOR_PHRASES[sub_key]
-        else:
-            anchor = f"questions about {persona_subject}, concepts, theories, problem solving, and details in {persona_subject}"
-
+    anchor = _build_persona_anchor(persona_tmpl, persona_subject)
     if not anchor:
         return True
 

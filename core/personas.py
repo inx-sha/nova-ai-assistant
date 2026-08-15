@@ -12,6 +12,7 @@ class PersonaTemplate:
     subject_prompt: str = ""
     keywords: list[str] = None
     anchor_phrase: str = ""
+    subject_clause_format: str = ", specializing in {subject}"
 
     def to_dict(self) -> dict:
         return {
@@ -41,6 +42,7 @@ PERSONA_TEMPLATES: dict[str, PersonaTemplate] = {
             "prosecution", "litigation", "claim", "plaintiff", "defendant", "settlement"
         ],
         anchor_phrase="legal questions, contract law, regulations, legal rights, liability, statutes, and legal compliance",
+        subject_clause_format=", specializing in {subject}",
     ),
     "teacher": PersonaTemplate(
         id="teacher",
@@ -58,6 +60,7 @@ PERSONA_TEMPLATES: dict[str, PersonaTemplate] = {
             "example", "problem", "solve", "quiz", "definition", "tutorial", "practice"
         ],
         anchor_phrase="educational explanations, teaching concepts, academic learning, study questions, and step-by-step lessons",
+        subject_clause_format=" in {subject}",
     ),
 }
 
@@ -84,6 +87,8 @@ def get_persona(persona_id: str | None) -> PersonaTemplate | None:
         requires_subject=False,
         subject_prompt="",
         keywords=[],
-        anchor_phrase=f"questions related to {cleaned}",
+        anchor_phrase="",
+        subject_clause_format=", specializing in {subject}",
     )
+
 
