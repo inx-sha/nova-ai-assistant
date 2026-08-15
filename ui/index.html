@@ -1368,6 +1368,36 @@
   }
   #pinnedBar svg { width: 14px; height: 14px; stroke: currentColor; color: var(--color-text-muted); flex-shrink: 0; }
 
+  #newModeOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: 150;
+    align-items: center;
+    justify-content: center;
+  }
+  #newModeOverlay.open { display: flex; }
+  #newModeModal {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: 20px 24px;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: var(--shadow-popover);
+    animation: fadeUp 160ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+  .inline-subject-card {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-top: 10px;
+    box-shadow: var(--shadow-card);
+  }
+
   @media (max-width: 700px) {
     #sidebar { position: absolute; left: 0; top: 0; z-index: 20; height: 100%; }
     #main { width: 100%; margin-left: 0; transition: margin-left var(--transition-normal); }
@@ -1526,6 +1556,43 @@
     </div>
     <div id="filePreviewContainer" style="flex:1;overflow:hidden;display:flex;flex-direction:column;margin-top:10px;">
       <div id="filePreviewBody"></div>
+    </div>
+  </div>
+</div>
+
+<div id="newModeOverlay">
+  <div id="newModeModal" role="dialog" aria-modal="true" aria-label="Create new mode">
+    <div class="settings-modal-header">
+      <div class="panel-header-title">
+        <strong style="font-size:1.05em;">Create New Mode</strong>
+      </div>
+      <button id="newModeCloseBtn" class="icon-btn" aria-label="Close" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:14px;">
+      <div>
+        <label for="newModeNameInput" style="display:block;font-size:0.84em;font-weight:600;margin-bottom:6px;color:var(--color-text);">Mode Name</label>
+        <input id="newModeNameInput" type="text" placeholder="e.g. physics_class, contract_review, cooking" style="width:100%;padding:9px 12px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-text);font-family:inherit;font-size:0.9em;" autocomplete="off" />
+      </div>
+
+      <div>
+        <label for="newModePersonaSelect" style="display:block;font-size:0.84em;font-weight:600;margin-bottom:6px;color:var(--color-text);">AI Persona <span style="font-size:0.85em;font-weight:400;color:var(--color-text-faint);">(Optional)</span></label>
+        <select id="newModePersonaSelect" style="width:100%;padding:9px 12px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-text);font-family:inherit;font-size:0.9em;cursor:pointer;">
+          <option value="">None (Standard topic mode)</option>
+        </select>
+        <div id="newModePersonaDesc" style="font-size:0.78em;color:var(--color-text-muted);margin-top:4px;min-height:1.2em;"></div>
+      </div>
+
+      <div id="newModeSubjectWrap" style="display:none;">
+        <label for="newModeSubjectInput" id="newModeSubjectLabel" style="display:block;font-size:0.84em;font-weight:600;margin-bottom:6px;color:var(--color-text);">Specialized Subject</label>
+        <input id="newModeSubjectInput" type="text" placeholder="e.g. Physics, Calculus, Contract Law" style="width:100%;padding:9px 12px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-text);font-family:inherit;font-size:0.9em;" autocomplete="off" />
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+        <button id="newModeCancelBtn" class="composer-btn" style="background:transparent;color:var(--color-text-muted);border:1px solid var(--color-border);padding:8px 16px;">Cancel</button>
+        <button id="newModeSubmitBtn" class="composer-btn" style="background:var(--color-primary);color:var(--color-canvas);padding:8px 18px;font-weight:600;">Create Mode</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1881,6 +1948,16 @@ const fileInput = document.getElementById("fileInput");
 const attachBtn = document.getElementById("attachBtn");
 const editingBanner = document.getElementById("editingBanner");
 const cancelEditBtn = document.getElementById("cancelEditBtn");
+const newModeOverlay = document.getElementById("newModeOverlay");
+const newModeCloseBtn = document.getElementById("newModeCloseBtn");
+const newModeCancelBtn = document.getElementById("newModeCancelBtn");
+const newModeSubmitBtn = document.getElementById("newModeSubmitBtn");
+const newModeNameInput = document.getElementById("newModeNameInput");
+const newModePersonaSelect = document.getElementById("newModePersonaSelect");
+const newModePersonaDesc = document.getElementById("newModePersonaDesc");
+const newModeSubjectWrap = document.getElementById("newModeSubjectWrap");
+const newModeSubjectLabel = document.getElementById("newModeSubjectLabel");
+const newModeSubjectInput = document.getElementById("newModeSubjectInput");
 let editingMessageId = null;
 
 function startEditingMessage(msgId, text) {
@@ -2899,6 +2976,47 @@ async function sendMessage(text) {
           }
           assistantDiv.appendChild(metaDiv);
 
+          if (event.mode === "needs_subject") {
+            const card = document.createElement("div");
+            card.className = "inline-subject-card";
+            card.innerHTML = `
+              <div style="font-size:0.86em;font-weight:600;margin-bottom:6px;color:var(--color-text);">Set specialized subject for this session:</div>
+              <div style="display:flex;gap:6px;">
+                <input type="text" class="inline-subject-input" placeholder="e.g. Physics, History, Calculus" style="flex:1;padding:7px 10px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);color:var(--color-text);font-family:inherit;font-size:0.86em;" />
+                <button class="inline-subject-btn" style="padding:7px 14px;border:none;border-radius:var(--radius-md);background:var(--color-primary);color:var(--color-canvas);font-size:0.84em;font-weight:600;cursor:pointer;">Save</button>
+              </div>
+            `;
+            const inp = card.querySelector(".inline-subject-input");
+            const btn = card.querySelector(".inline-subject-btn");
+            const handleSetSubject = async () => {
+              const subVal = inp.value.trim();
+              if (!subVal) return;
+              btn.disabled = true;
+              btn.textContent = "Saving...";
+              try {
+                const sessionsRes = await fetch("/sessions");
+                const sessionsData = await sessionsRes.json();
+                const curr = sessionsData.sessions ? sessionsData.sessions.find(s => s.session_id === sessionId) : null;
+                const currMode = curr ? curr.mode : "general";
+                const currPersona = curr ? curr.persona : "teacher";
+                await fetch("/sessions/" + sessionId + "/mode", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ mode: currMode, persona: currPersona, persona_subject: subVal }),
+                });
+                card.innerHTML = `<span style="font-size:0.84em;color:var(--color-success);font-weight:600;">✓ Subject set to "${escapeHtml(subVal)}". You can now ask your questions.</span>`;
+                loadSessions();
+              } catch (err) {
+                btn.disabled = false;
+                btn.textContent = "Save";
+                alert("Failed to save subject: " + err.message);
+              }
+            };
+            btn.addEventListener("click", handleSetSubject);
+            inp.addEventListener("keydown", (e) => { if (e.key === "Enter") handleSetSubject(); });
+            assistantTextDiv.appendChild(card);
+          }
+
           if (event.filed_elsewhere) {
             const moveBtn = document.createElement("button");
             moveBtn.textContent = "Move to General chat";
@@ -3461,21 +3579,108 @@ modeSelect.addEventListener("change", async () => {
   loadSessions();
 });
 
-document.getElementById("newModeBtn").addEventListener("click", async () => {
-  const name = prompt("Name this mode (e.g. 'cooking', 'personal_finance'):");
-  if (!name) return;
-  const normalized = name.trim().toLowerCase().replace(/\s+/g, "_");
-  if (!normalized) return;
+let personasCache = [];
 
-  await fetch("/sessions/" + sessionId + "/mode", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: normalized }),
+async function loadPersonas() {
+  try {
+    const res = await fetch("/personas");
+    if (!res.ok) throw new Error("Failed to fetch personas");
+    const data = await res.json();
+    personasCache = data.personas || [];
+    if (newModePersonaSelect) {
+      newModePersonaSelect.innerHTML = '<option value="">None (Standard topic mode)</option>';
+      for (const p of personasCache) {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name;
+        newModePersonaSelect.appendChild(opt);
+      }
+    }
+  } catch (err) {
+    console.error("Could not load personas:", err);
+  }
+}
+
+function openNewModeModal() {
+  if (!newModeOverlay) return;
+  newModeNameInput.value = "";
+  newModePersonaSelect.value = "";
+  newModePersonaDesc.textContent = "";
+  newModeSubjectInput.value = "";
+  newModeSubjectWrap.style.display = "none";
+  newModeOverlay.classList.add("open");
+  newModeNameInput.focus();
+}
+
+function closeNewModeModal() {
+  if (newModeOverlay) newModeOverlay.classList.remove("open");
+}
+
+if (newModeBtn) {
+  newModeBtn.addEventListener("click", () => {
+    loadPersonas();
+    openNewModeModal();
   });
-  await loadModes();
-  modeSelect.value = normalized;
-  loadSessions();
-});
+}
+if (newModeCloseBtn) newModeCloseBtn.addEventListener("click", closeNewModeModal);
+if (newModeCancelBtn) newModeCancelBtn.addEventListener("click", closeNewModeModal);
+
+if (newModePersonaSelect) {
+  newModePersonaSelect.addEventListener("change", () => {
+    const selected = personasCache.find(p => p.id === newModePersonaSelect.value);
+    if (selected) {
+      newModePersonaDesc.textContent = selected.description || "";
+      if (selected.requires_subject) {
+        newModeSubjectWrap.style.display = "block";
+        newModeSubjectLabel.textContent = selected.subject_prompt || "Specialized Subject";
+        newModeSubjectInput.placeholder = "e.g. Physics, Calculus, History";
+      } else {
+        newModeSubjectWrap.style.display = "none";
+      }
+    } else {
+      newModePersonaDesc.textContent = "";
+      newModeSubjectWrap.style.display = "none";
+    }
+  });
+}
+
+if (newModeSubmitBtn) {
+  newModeSubmitBtn.addEventListener("click", async () => {
+    const nameVal = newModeNameInput.value.trim();
+    if (!nameVal) {
+      alert("Please enter a mode name.");
+      newModeNameInput.focus();
+      return;
+    }
+    const normalized = nameVal.toLowerCase().replace(/\s+/g, "_");
+    const personaVal = newModePersonaSelect.value || null;
+    let subjectVal = newModeSubjectInput.value.trim() || null;
+    const selectedPersona = personasCache.find(p => p.id === personaVal);
+    if (selectedPersona && selectedPersona.requires_subject && !subjectVal) {
+      alert("Please specify a subject for this persona (e.g. Physics, History).");
+      newModeSubjectInput.focus();
+      return;
+    }
+
+    try {
+      await fetch("/sessions/" + sessionId + "/mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: normalized,
+          persona: personaVal,
+          persona_subject: subjectVal,
+        }),
+      });
+      closeNewModeModal();
+      await loadModes();
+      modeSelect.value = normalized;
+      loadSessions();
+    } catch (err) {
+      alert("Failed to create mode: " + err.message);
+    }
+  });
+}
 
 function switchSession(id) {
   cancelEditing();
