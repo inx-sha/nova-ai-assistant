@@ -1,7 +1,7 @@
 """
 Isolated cloud LLM synthesis module for NOVA.
 
-Provides a single function, `synthesize_answer`, that uses a cloud provider (Anthropic Claude Haiku)
+Provides a single function, `synthesize_answer`, that uses a cloud provider (Google Gemini Flash)
 to synthesize web search snippets into a clean, factual knowledge chunk. All provider-specific
 API logic is isolated in this module.
 """
@@ -13,30 +13,31 @@ import os
 logger = logging.getLogger("nova.cloud_llm")
 
 # Provider configuration (isolated within this module)
-ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-20241022")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.7-flash")
 
 
 def synthesize_answer(query: str, search_snippets: list[str]) -> str | None:
     """
-    Synthesizes search snippets into a clean, factual answer using Anthropic Claude Haiku.
+    Synthesizes search snippets into a clean, factual answer using Google Gemini Flash.
 
     Returns the synthesized text chunk on success, or None if:
-    - ANTHROPIC_API_KEY is missing or empty
+    - GEMINI_API_KEY is missing or empty
     - search_snippets is empty
     - The API call fails or encounters an error
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
-        logger.info("ANTHROPIC_API_KEY not configured; skipping cloud synthesis.")
+        logger.info("GEMINI_API_KEY not configured; skipping cloud synthesis.")
         return None
 
     if not query.strip() or not search_snippets:
         return None
 
     try:
-        import anthropic
+        from google import genai
+        from google.genai import types
 
-        client = anthropic.Anthropic(api_key=api_key)
+        client = genai.Client(api_key=api_key)
 
         snippets_block = "\n\n---\n\n".join(
             f"Snippet {i+1}:\n{s.strip()}"
@@ -47,36 +48,35 @@ def synthesize_answer(query: str, search_snippets: list[str]) -> str | None:
         if not snippets_block.strip():
             return None
 
-        prompt = (
+        system_prompt = (
             "You are synthesizing web search results into a clean, factual knowledge entry "
             "for an offline knowledge base. Answer the user's question accurately, concisely, "
             "and factually using the provided search snippets.\n\n"
-            f"Question: {query}\n\n"
-            f"Search Results:\n{snippets_block}\n\n"
             "Instructions:\n"
             "- Provide a clear, self-contained, and factual explanation (2-5 paragraphs).\n"
-            "- Do not include meta-commentary, introductory filler, or mentions of 'snippets'.\n"
+            "- Do not include meta-commentary, introductory filler, or mentions of 'snippets' or search results.\n"
             "- Present only verified, objective facts."
         )
 
-        message = client.messages.create(
-            model=ANTHROPIC_MODEL,
-            max_tokens=1024,
-            temperature=0.2,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
+        user_prompt = (
+            f"Question: {query}\n\n"
+            f"Search Results:\n{snippets_block}"
         )
 
-        if not message.content:
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.2,
+                max_output_tokens=1024,
+            ),
+        )
+
+        if not response or not response.text:
             return None
 
-        result_blocks = []
-        for block in message.content:
-            if hasattr(block, "text") and block.text:
-                result_blocks.append(block.text)
-
-        synthesized = "\n".join(result_blocks).strip()
+        synthesized = response.text.strip()
         return synthesized if synthesized else None
 
     except Exception as e:

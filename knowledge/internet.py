@@ -105,8 +105,8 @@ def research_topic(query: str, allow_cloud: bool = False, ttl_hours: int = 24) -
     """
     Researches a topic using web search.
 
-    If allow_cloud=True and ANTHROPIC_API_KEY is configured, passes search snippets
-    to Anthropic Claude Haiku for clean synthesis. Otherwise, falls back to local
+    If allow_cloud=True and GEMINI_API_KEY is configured, passes search snippets
+    to Google Gemini Flash for clean synthesis. Otherwise, falls back to local
     verification and summarization.
     """
     try:
